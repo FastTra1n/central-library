@@ -78,11 +78,11 @@ const books = [
   },
 ];
 
-const CatalogPage = ({ onNavigate }) => {
+const CatalogPage = () => {
   return (
     <div className="layout">
       <aside className="layout__sidebar">
-        <Sidebar activeKey="catalog" onSelect={onNavigate} />
+        <Sidebar />
       </aside>
       <div className="layout__main">
         <TopBar searchPlaceholder="Поиск книг или авторов..." />

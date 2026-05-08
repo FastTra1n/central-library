@@ -1,13 +1,30 @@
+import { NavLink } from "react-router-dom";
+
 const navItems = [
-  { key: "catalog", label: "Каталог", icon: "bi-grid" },
-  { key: "history", label: "История", icon: "bi-clock-history" },
-  { key: "halls", label: "Залы", icon: "bi-columns-gap" },
-  { key: "books", label: "Управление книгами", icon: "bi-book" },
-  { key: "users", label: "Управление пользователями", icon: "bi-people" },
-  { key: "profile", label: "Профиль", icon: "bi-person" },
+  { key: "catalog", label: "Каталог", icon: "bi-grid", path: "/catalog" },
+  {
+    key: "history",
+    label: "История",
+    icon: "bi-clock-history",
+    path: "/history",
+  },
+  { key: "halls", label: "Залы", icon: "bi-columns-gap", path: "/halls" },
+  {
+    key: "books",
+    label: "Управление книгами",
+    icon: "bi-book",
+    path: "/books",
+  },
+  {
+    key: "users",
+    label: "Управление пользователями",
+    icon: "bi-people",
+    path: "/users",
+  },
+  { key: "profile", label: "Профиль", icon: "bi-person", path: "/profile" },
 ];
 
-const Sidebar = ({ activeKey = "catalog", onSelect }) => {
+const Sidebar = () => {
   return (
     <div className="sidebar">
       <div className="sidebar__brand">
@@ -22,17 +39,16 @@ const Sidebar = ({ activeKey = "catalog", onSelect }) => {
 
       <nav className="sidebar__nav">
         {navItems.map((item) => (
-          <button
+          <NavLink
             key={item.key}
-            className={`sidebar__item ${
-              activeKey === item.key ? "sidebar__item--active" : ""
-            }`}
-            type="button"
-            onClick={() => onSelect?.(item.key)}
+            to={item.path}
+            className={({ isActive }) =>
+              `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
+            }
           >
             <i className={`sidebar__icon bi ${item.icon}`}></i>
             <span className="sidebar__label">{item.label}</span>
-          </button>
+          </NavLink>
         ))}
       </nav>
     </div>
