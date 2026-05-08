@@ -23,8 +23,11 @@ const HallCard = ({ hall }) => {
             </span>
           ))}
         </div>
-        <button className="button button--primary hall-card__action" type="button">
-          Записаться в зал
+        <button
+          className="button button--primary hall-card__action"
+          type="button"
+        >
+          Подробнее
         </button>
       </div>
     </article>

@@ -1,7 +1,6 @@
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import HallCard from "../components/HallCard.jsx";
-import StatCard from "../components/StatCard.jsx";
 
 const halls = [
   {
@@ -61,11 +60,11 @@ const utilization = totalSeats
   ? Math.round((occupiedSeats / totalSeats) * 100)
   : 0;
 
-const HallsPage = ({ onNavigate }) => {
+const HallsPage = () => {
   return (
     <div className="layout">
       <aside className="layout__sidebar">
-        <Sidebar activeKey="halls" onSelect={onNavigate} />
+        <Sidebar />
       </aside>
       <div className="layout__main">
         <TopBar searchPlaceholder="Поиск залов или специализаций..." />
@@ -106,12 +105,6 @@ const HallsPage = ({ onNavigate }) => {
                       <span className="halls-panel__value">{utilization}%</span>
                     </div>
                   </div>
-                  <button
-                    className="button button--light halls-panel__action"
-                    type="button"
-                  >
-                    Правила посещения
-                  </button>
                 </div>
 
                 <div className="halls-note">
@@ -121,22 +114,7 @@ const HallsPage = ({ onNavigate }) => {
                     обратитесь к сотруднику в холле.
                   </span>
                 </div>
-
-                <button className="halls-link" type="button">
-                  <i className="bi bi-clock-history"></i>
-                  История посещений
-                </button>
               </aside>
-            </div>
-
-            <div className="halls__stats">
-              <StatCard icon="bi-collection" label="Всего залов" value={halls.length} />
-              <StatCard icon="bi-people" label="Свободных мест" value={freeSeats} />
-              <StatCard
-                icon="bi-activity"
-                label="Нагрузка сейчас"
-                value={`Умеренная (${utilization}%)`}
-              />
             </div>
           </section>
         </main>
