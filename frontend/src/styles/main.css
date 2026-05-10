@@ -238,6 +238,11 @@ body {
     color: #fff;
 }
 
+.button--dark {
+    background: #0f172a;
+    color: #fff;
+}
+
 .catalog__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -865,6 +870,318 @@ body {
     cursor: not-allowed;
 }
 
+.inventory {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.inventory__hero {
+    background: linear-gradient(135deg, #5ec4f5, #7dd3fc);
+    color: #fff;
+    border-radius: 20px;
+    padding: 26px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    box-shadow: var(--shadow-soft);
+}
+
+.inventory__hero-content {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inventory__hero-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.inventory__hero-subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.inventory__hero-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.inventory__hero .button--light {
+    background: #fff;
+    border: none;
+    color: #0f172a;
+}
+
+.inventory__hero-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.2);
+    display: grid;
+    place-items: center;
+    font-size: 28px;
+}
+
+.inventory__table-card {
+    background: var(--color-surface);
+    border-radius: 18px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-x: auto;
+}
+
+.inventory__table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--color-muted);
+}
+
+.inventory__table-title {
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.inventory__filter {
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.inventory-table {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inventory-table__row {
+    display: grid;
+    grid-template-columns: 1.2fr 1.6fr 0.9fr 1fr 0.4fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 12px;
+    color: var(--color-text);
+}
+
+.inventory-table__row--head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--color-muted);
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 12px;
+}
+
+.inventory-table__isbn {
+    color: var(--color-muted);
+}
+
+.inventory-table__book {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.inventory-table__title {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.inventory-table__author {
+    color: var(--color-muted);
+    font-size: 11px;
+}
+
+.inventory-table__tag {
+    background: var(--color-primary-weak);
+    color: var(--color-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    width: fit-content;
+}
+
+.inventory-table__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-muted);
+    font-weight: 600;
+}
+
+.inventory-table__status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-secondary);
+}
+
+.inventory-table__status--borrowed .inventory-table__status-dot {
+    background: var(--color-tertiary);
+}
+
+.inventory-table__status--reserved .inventory-table__status-dot {
+    background: #38bdf8;
+}
+
+.inventory-table__action {
+    border: none;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.inventory__table-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--color-muted);
+    font-size: 12px;
+    padding-top: 6px;
+}
+
+.inventory__bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 20px;
+}
+
+.activity-card {
+    background: var(--color-surface);
+    border-radius: 18px;
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.activity-card__title {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.activity-card__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.activity-card__item {
+    display: flex;
+    gap: 12px;
+}
+
+.activity-card__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: var(--color-primary-weak);
+    color: var(--color-secondary);
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.activity-card__icon--warning {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.activity-card__content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.activity-card__name {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.activity-card__subtitle {
+    font-size: 11px;
+    color: var(--color-muted);
+}
+
+.activity-card__time {
+    font-size: 10px;
+    color: var(--color-muted);
+}
+
+.inventory__stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.stat-tile {
+    background: var(--color-surface);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-tile__label {
+    font-size: 11px;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.stat-tile__value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-secondary);
+}
+
+.stat-tile__line {
+    width: 60%;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--color-secondary);
+}
+
+.stat-tile--danger .stat-tile__value {
+    color: #ef4444;
+}
+
+.stat-tile__link {
+    border: none;
+    background: transparent;
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
 .placeholder {
     background: var(--color-surface);
     border-radius: 16px;
@@ -892,6 +1209,10 @@ body {
     }
 
     .profile__body {
+        grid-template-columns: 1fr;
+    }
+
+    .inventory__bottom {
         grid-template-columns: 1fr;
     }
 }
