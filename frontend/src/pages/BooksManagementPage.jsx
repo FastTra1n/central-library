@@ -62,10 +62,12 @@ const BooksManagementPage = () => {
           <section className="inventory">
             <div className="inventory__hero">
               <div className="inventory__hero-content">
-                <h1 className="inventory__hero-title">Панель управления инвентарем</h1>
+                <h1 className="inventory__hero-title">
+                  Панель управления инвентарем
+                </h1>
                 <p className="inventory__hero-subtitle">
-                  Добро пожаловать, Никита. Сегодня в каталоге 12 новых поступлений
-                  и 5 заявок на бронирование.
+                  Добро пожаловать, Никита. Сегодня в каталоге 12 новых
+                  поступлений и 5 заявок на бронирование.
                 </p>
                 <div className="inventory__hero-actions">
                   <button className="button button--light" type="button">
@@ -78,14 +80,16 @@ const BooksManagementPage = () => {
                   </button>
                 </div>
               </div>
-              <div className="inventory__hero-icon">
+              <div className="inventory__hero-decor" aria-hidden="true">
                 <i className="bi bi-book"></i>
               </div>
             </div>
 
             <div className="inventory__table-card">
               <div className="inventory__table-header">
-                <div className="inventory__table-title">Управление инвентарем</div>
+                <div className="inventory__table-title">
+                  Управление инвентарем
+                </div>
                 <button className="inventory__filter" type="button">
                   <i className="bi bi-filter"></i>
                   Фильтр
@@ -103,10 +107,16 @@ const BooksManagementPage = () => {
                   <div key={item.id} className="inventory-table__row">
                     <span className="inventory-table__isbn">{item.isbn}</span>
                     <div className="inventory-table__book">
-                      <span className="inventory-table__title">{item.title}</span>
-                      <span className="inventory-table__author">{item.author}</span>
+                      <span className="inventory-table__title">
+                        {item.title}
+                      </span>
+                      <span className="inventory-table__author">
+                        {item.author}
+                      </span>
                     </div>
-                    <span className="inventory-table__tag">{item.category}</span>
+                    <span className="inventory-table__tag">
+                      {item.category}
+                    </span>
                     <span
                       className={`inventory-table__status inventory-table__status--${item.statusType}`}
                     >
@@ -120,17 +130,39 @@ const BooksManagementPage = () => {
                 ))}
               </div>
               <div className="inventory__table-footer">
-                <span className="inventory__table-meta">Показано 3 из 1,248 книг</span>
+                <span className="inventory__table-meta">
+                  Показано 3 из 1,248 книг
+                </span>
                 <Pagination />
               </div>
             </div>
 
             <div className="inventory__bottom">
               <div className="activity-card">
-                <div className="activity-card__title">Последняя активность</div>
+                <div className="activity-card__title">
+                  <span className="activity-card__wave" aria-hidden="true">
+                    <svg viewBox="0 0 32 6" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M1 3c2.5-2 5-2 7 0s5 2 7 0 5-2 7 0 5 2 7 0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  Последняя активность
+                </div>
                 <div className="activity-card__list">
                   {activity.map((item) => (
-                    <div key={item.id} className="activity-card__item">
+                    <div
+                      key={item.id}
+                      className={`activity-card__item activity-card__item--${item.tone}`}
+                    >
+                      <span
+                        className="activity-card__stroke"
+                        aria-hidden="true"
+                      ></span>
                       <div
                         className={`activity-card__icon activity-card__icon--${item.tone}`}
                       >
@@ -138,8 +170,14 @@ const BooksManagementPage = () => {
                       </div>
                       <div className="activity-card__content">
                         <div className="activity-card__name">{item.title}</div>
-                        <div className="activity-card__subtitle">{item.subtitle}</div>
-                        <div className="activity-card__time">{item.time}</div>
+                        <div className="activity-card__subtitle">
+                          {item.subtitle}
+                        </div>
+                        <div
+                          className={`activity-card__time activity-card__time--${item.tone}`}
+                        >
+                          {item.time}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -150,7 +188,6 @@ const BooksManagementPage = () => {
                 <div className="stat-tile">
                   <span className="stat-tile__label">Книг на руках</span>
                   <span className="stat-tile__value">342</span>
-                  <div className="stat-tile__line"></div>
                 </div>
                 <div className="stat-tile stat-tile--danger">
                   <span className="stat-tile__label">Просрочено</span>

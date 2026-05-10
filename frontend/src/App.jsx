@@ -3,6 +3,7 @@ import CatalogPage from "./pages/CatalogPage.jsx";
 import HallsPage from "./pages/HallsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import BooksManagementPage from "./pages/BooksManagementPage.jsx";
+import UsersManagementPage from "./pages/UsersManagementPage.jsx";
 import PlaceholderPage from "./pages/PlaceholderPage.jsx";
 
 const App = () => {
@@ -15,10 +16,7 @@ const App = () => {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/history" element={<PlaceholderPage title="История" />} />
         <Route path="/books" element={<BooksManagementPage />} />
-        <Route
-          path="/users"
-          element={<PlaceholderPage title="Управление пользователями" />}
-        />
+        <Route path="/users" element={<UsersManagementPage />} />
         <Route path="*" element={<Navigate to="/catalog" replace />} />
       </Routes>
     </BrowserRouter>
