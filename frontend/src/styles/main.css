@@ -409,8 +409,9 @@ body {
     border-radius: 20px;
     overflow: hidden;
     box-shadow: var(--shadow-soft);
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 5;
 }
 
 .hall-card__image {
@@ -454,9 +455,10 @@ body {
 }
 
 .hall-card__body {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: 2 / 6;
     padding: 16px;
-    display: flex;
-    flex-direction: column;
     gap: 12px;
 }
 
@@ -475,6 +477,9 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    justify-self: start;
+    align-self: start;
+    max-width: 100%;
 }
 
 .hall-card__tag {
