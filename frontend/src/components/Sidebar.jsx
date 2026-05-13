@@ -2,13 +2,7 @@ import { NavLink } from "react-router-dom";
 
 const navItems = [
   { key: "catalog", label: "Каталог", icon: "bi-grid", path: "/catalog" },
-  {
-    key: "history",
-    label: "История",
-    icon: "bi-clock-history",
-    path: "/history",
-  },
-  { key: "halls", label: "Залы", icon: "bi-columns-gap", path: "/halls" },
+  { key: "halls", label: "Залы", icon: "bi-door-open", path: "/halls" },
   {
     key: "books",
     label: "Управление книгами",
