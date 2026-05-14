@@ -1,4 +1,4 @@
-const HallCard = ({ hall }) => {
+const HallCard = ({ hall, onDetails }) => {
   const statusClass = `hall-card__status hall-card__status--${hall.statusType}`;
 
   return (
@@ -26,6 +26,7 @@ const HallCard = ({ hall }) => {
         <button
           className="button button--primary hall-card__action"
           type="button"
+          onClick={() => onDetails?.(hall)}
         >
           Подробнее
         </button>
