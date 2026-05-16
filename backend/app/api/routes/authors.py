@@ -1,9 +1,10 @@
-from app.db.session import get_session
-from app.models.author import Author
-from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_session
+from app.models.author import Author
+from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
 
 router = APIRouter(prefix="/authors", tags=["authors"])
 
