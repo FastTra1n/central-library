@@ -1,9 +1,19 @@
 from fastapi import APIRouter
 
-from app.api.routes import authors, book_copies, books, genres, halls, roles, users
+from app.api.routes import (
+    auth,
+    authors,
+    book_copies,
+    books,
+    genres,
+    halls,
+    roles,
+    users,
+)
 
 api_router = APIRouter()
 
+api_router.include_router(auth.router)
 api_router.include_router(authors.router)
 api_router.include_router(genres.router)
 api_router.include_router(halls.router)
