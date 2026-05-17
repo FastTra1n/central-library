@@ -4,7 +4,7 @@ import HallsPage from "./pages/HallsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import BooksManagementPage from "./pages/BooksManagementPage.jsx";
 import UsersManagementPage from "./pages/UsersManagementPage.jsx";
-import PlaceholderPage from "./pages/PlaceholderPage.jsx";
+import AuthPage from "./pages/AuthPage.jsx";
 
 const App = () => {
   return (
@@ -14,6 +14,7 @@ const App = () => {
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/halls" element={<HallsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route path="/books" element={<BooksManagementPage />} />
         <Route path="/users" element={<UsersManagementPage />} />
         <Route path="*" element={<Navigate to="/catalog" replace />} />

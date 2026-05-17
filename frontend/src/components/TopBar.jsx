@@ -1,4 +1,18 @@
+import { useNavigate } from "react-router-dom";
+
+import { isAuthenticated } from "../utils/auth.js";
+
 const TopBar = ({ searchPlaceholder = "Поиск книг или авторов..." }) => {
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    if (!isAuthenticated()) {
+      navigate("/auth", { state: { from: "/profile" } });
+      return;
+    }
+
+    navigate("/profile");
+  };
   return (
     <header className="topbar">
       <div className="topbar__title">Центральная библиотека</div>
@@ -21,6 +35,7 @@ const TopBar = ({ searchPlaceholder = "Поиск книг или авторов
         <button
           className="topbar__icon-button topbar__icon-button--avatar"
           type="button"
+          onClick={handleProfileClick}
         >
           <i className="bi bi-person-circle"></i>
         </button>
