@@ -5,7 +5,7 @@ from app.schemas.genre import GenreCreate, GenreRead, GenreUpdate
 from app.schemas.hall import HallCreate, HallRead, HallUpdate
 from app.schemas.role import RoleRead
 from app.schemas.transaction import TransactionIssue, TransactionRead
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserCreate, UserRead, UserRoleUpdate, UserUpdate
 
 __all__ = [
     "AuthorCreate",
@@ -27,6 +27,7 @@ __all__ = [
     "UserCreate",
     "UserRead",
     "UserUpdate",
+    "UserRoleUpdate",
     "TransactionIssue",
     "TransactionRead",
 ]

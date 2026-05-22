@@ -42,3 +42,16 @@ async def get_current_user(
     if not user:
         raise credentials_exception
     return user
+
+
+def require_roles(*roles: str):
+    async def _dependency(current_user: User = Depends(get_current_user)) -> User:
+        role_name = current_user.role.name if current_user.role else None
+        if role_name not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return current_user
+
+    return _dependency

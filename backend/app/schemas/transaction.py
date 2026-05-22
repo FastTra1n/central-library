@@ -8,7 +8,7 @@ from app.schemas.user import UserRead
 
 class TransactionIssue(BaseModel):
     user_id: int
-    librarian_id: int
+    librarian_id: int | None = None
     copy_id: int | None = None
     book_id: int | None = None
     due_date: datetime | None = None

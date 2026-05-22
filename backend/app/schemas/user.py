@@ -1,8 +1,9 @@
 from datetime import date, datetime
 
+from pydantic import BaseModel, ConfigDict, EmailStr
+
 from app.schemas.hall import HallRead
 from app.schemas.role import RoleRead
-from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserBase(BaseModel):
@@ -30,6 +31,10 @@ class UserUpdate(BaseModel):
     education: str | None = None
     hall_id: int | None = None
     password: str | None = None
+
+
+class UserRoleUpdate(BaseModel):
+    role_id: int
 
 
 class UserRead(UserBase):
