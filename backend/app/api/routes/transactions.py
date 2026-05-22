@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, select
@@ -98,7 +98,7 @@ async def issue_book(
     if copy.status != BookCopyStatus.Available:
         raise HTTPException(status_code=400, detail="Book copy is not available")
 
-    issue_date = datetime.utcnow()
+    issue_date = datetime.now(UTC)
     due_date = payload.due_date or issue_date + timedelta(days=14)
     if due_date <= issue_date:
         raise HTTPException(status_code=400, detail="due_date must be in the future")
@@ -144,7 +144,7 @@ async def return_book(
     if transaction.copy.status == BookCopyStatus.Lost:
         raise HTTPException(status_code=400, detail="Book copy is marked as lost")
 
-    transaction.return_date = datetime.utcnow()
+    transaction.return_date = datetime.now(UTC)
     transaction.copy.status = BookCopyStatus.Available
     await session.commit()
     await session.refresh(transaction)

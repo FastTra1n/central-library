@@ -26,4 +26,4 @@ class TransactionRead(BaseModel):
     return_date: datetime | None = None
     user: UserRead | None = None
     librarian: UserRead | None = None
-    copy: BookCopyRead | None = None
+    book_copy: BookCopyRead | None = None

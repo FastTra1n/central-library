@@ -11,5 +11,5 @@ class BookAuthor(Base):
     book_id: Mapped[int] = mapped_column(ForeignKey("books.id"), nullable=False)
     author_id: Mapped[int] = mapped_column(ForeignKey("authors.id"), nullable=False)
 
-    book = relationship("Book")
-    author = relationship("Author")
+    book = relationship("Book", overlaps="authors,books")
+    author = relationship("Author", overlaps="authors,books")
