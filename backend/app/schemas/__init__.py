@@ -1,3 +1,11 @@
+from app.schemas.analytics import (
+    BookAvailability,
+    HallAuthorBooks,
+    HallFreeSeats,
+    IssuedBookItem,
+    SingleCopyBorrower,
+    TopRatedBook,
+)
 from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
 from app.schemas.book import BookCreate, BookRead, BookUpdate
 from app.schemas.book_copy import BookCopyCreate, BookCopyRead, BookCopyUpdate
@@ -30,4 +38,10 @@ __all__ = [
     "UserRoleUpdate",
     "TransactionIssue",
     "TransactionRead",
+    "IssuedBookItem",
+    "HallFreeSeats",
+    "BookAvailability",
+    "HallAuthorBooks",
+    "SingleCopyBorrower",
+    "TopRatedBook",
 ]
