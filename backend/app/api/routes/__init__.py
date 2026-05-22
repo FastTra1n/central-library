@@ -1,3 +1,4 @@
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.authors import router as authors_router
 from app.api.routes.book_copies import router as book_copies_router
 from app.api.routes.books import router as books_router
@@ -16,4 +17,5 @@ __all__ = [
     "roles_router",
     "users_router",
     "transactions_router",
+    "analytics_router",
 ]

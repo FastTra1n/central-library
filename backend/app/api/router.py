@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    analytics,
     auth,
     authors,
     book_copies,
@@ -23,6 +24,7 @@ api_router.include_router(book_copies.router)
 api_router.include_router(users.router)
 api_router.include_router(roles.router)
 api_router.include_router(transactions.router)
+api_router.include_router(analytics.router)
 
 
 @api_router.get("/health")
