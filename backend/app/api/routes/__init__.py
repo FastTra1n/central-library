@@ -4,6 +4,7 @@ from app.api.routes.books import router as books_router
 from app.api.routes.genres import router as genres_router
 from app.api.routes.halls import router as halls_router
 from app.api.routes.roles import router as roles_router
+from app.api.routes.transactions import router as transactions_router
 from app.api.routes.users import router as users_router
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "halls_router",
     "roles_router",
     "users_router",
+    "transactions_router",
 ]
