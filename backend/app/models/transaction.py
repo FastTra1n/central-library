@@ -14,6 +14,7 @@ class Transaction(Base):
     copy_id: Mapped[int] = mapped_column(ForeignKey("book_copies.id"), nullable=False)
     librarian_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     issue_date: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    due_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     return_date: Mapped[datetime | None] = mapped_column(DateTime)
 
     user = relationship("User", foreign_keys=[user_id], back_populates="transactions")
