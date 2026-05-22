@@ -3,10 +3,12 @@ from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps import require_roles
 from app.db.session import get_session
 from app.models.author import Author
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.user import User
 from app.schemas.book import BookCreate, BookRead, BookUpdate
 from app.schemas.book_copy import BookCopyCreate, BookCopyRead
 
@@ -79,7 +81,9 @@ async def get_book(
 
 @router.post("", response_model=BookRead, status_code=status.HTTP_201_CREATED)
 async def create_book(
-    payload: BookCreate, session: AsyncSession = Depends(get_session)
+    payload: BookCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> BookRead:
     data = payload.model_dump(exclude={"author_ids", "copy_ciphers"})
     book = Book(**data)
@@ -104,7 +108,10 @@ async def create_book(
 
 @router.patch("/{book_id}", response_model=BookRead)
 async def update_book(
-    book_id: int, payload: BookUpdate, session: AsyncSession = Depends(get_session)
+    book_id: int,
+    payload: BookUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> BookRead:
     result = await session.execute(
         select(Book).where(Book.id == book_id).options(selectinload(Book.authors))
@@ -132,7 +139,9 @@ async def update_book(
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_book(
-    book_id: int, session: AsyncSession = Depends(get_session)
+    book_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> None:
     book = await session.get(Book, book_id)
     if not book:
@@ -161,6 +170,7 @@ async def create_book_copy(
     book_id: int,
     payload: BookCopyCreate,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> BookCopyRead:
     book = await session.get(Book, book_id)
     if not book:

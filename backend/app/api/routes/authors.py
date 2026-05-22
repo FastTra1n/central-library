@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_roles
 from app.db.session import get_session
 from app.models.author import Author
+from app.models.user import User
 from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
 
 router = APIRouter(prefix="/authors", tags=["authors"])
@@ -29,7 +31,9 @@ async def get_author(
 
 @router.post("", response_model=AuthorRead, status_code=status.HTTP_201_CREATED)
 async def create_author(
-    payload: AuthorCreate, session: AsyncSession = Depends(get_session)
+    payload: AuthorCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> AuthorRead:
     author = Author(**payload.model_dump())
     session.add(author)
@@ -40,7 +44,10 @@ async def create_author(
 
 @router.patch("/{author_id}", response_model=AuthorRead)
 async def update_author(
-    author_id: int, payload: AuthorUpdate, session: AsyncSession = Depends(get_session)
+    author_id: int,
+    payload: AuthorUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> AuthorRead:
     author = await session.get(Author, author_id)
     if not author:
@@ -55,7 +62,9 @@ async def update_author(
 
 @router.delete("/{author_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_author(
-    author_id: int, session: AsyncSession = Depends(get_session)
+    author_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> None:
     author = await session.get(Author, author_id)
     if not author:

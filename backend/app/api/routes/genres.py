@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_roles
 from app.db.session import get_session
 from app.models.genre import Genre
+from app.models.user import User
 from app.schemas.genre import GenreCreate, GenreRead, GenreUpdate
 
 router = APIRouter(prefix="/genres", tags=["genres"])
@@ -27,7 +29,9 @@ async def get_genre(
 
 @router.post("", response_model=GenreRead, status_code=status.HTTP_201_CREATED)
 async def create_genre(
-    payload: GenreCreate, session: AsyncSession = Depends(get_session)
+    payload: GenreCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> GenreRead:
     genre = Genre(**payload.model_dump())
     session.add(genre)
@@ -38,7 +42,10 @@ async def create_genre(
 
 @router.patch("/{genre_id}", response_model=GenreRead)
 async def update_genre(
-    genre_id: int, payload: GenreUpdate, session: AsyncSession = Depends(get_session)
+    genre_id: int,
+    payload: GenreUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> GenreRead:
     genre = await session.get(Genre, genre_id)
     if not genre:
@@ -53,7 +60,9 @@ async def update_genre(
 
 @router.delete("/{genre_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_genre(
-    genre_id: int, session: AsyncSession = Depends(get_session)
+    genre_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> None:
     genre = await session.get(Genre, genre_id)
     if not genre:

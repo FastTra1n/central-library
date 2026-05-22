@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import require_roles
 from app.db.session import get_session
 from app.models.hall import Hall
+from app.models.user import User
 from app.schemas.hall import HallCreate, HallRead, HallUpdate
 
 router = APIRouter(prefix="/halls", tags=["halls"])
@@ -27,7 +29,9 @@ async def get_hall(
 
 @router.post("", response_model=HallRead, status_code=status.HTTP_201_CREATED)
 async def create_hall(
-    payload: HallCreate, session: AsyncSession = Depends(get_session)
+    payload: HallCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> HallRead:
     hall = Hall(**payload.model_dump())
     session.add(hall)
@@ -38,7 +42,10 @@ async def create_hall(
 
 @router.patch("/{hall_id}", response_model=HallRead)
 async def update_hall(
-    hall_id: int, payload: HallUpdate, session: AsyncSession = Depends(get_session)
+    hall_id: int,
+    payload: HallUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> HallRead:
     hall = await session.get(Hall, hall_id)
     if not hall:
@@ -53,7 +60,9 @@ async def update_hall(
 
 @router.delete("/{hall_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_hall(
-    hall_id: int, session: AsyncSession = Depends(get_session)
+    hall_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> None:
     hall = await session.get(Hall, hall_id)
     if not hall:

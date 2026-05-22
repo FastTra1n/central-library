@@ -5,6 +5,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
 from app.models.book_copy import BookCopy, BookCopyStatus
 from app.models.hall import Hall
@@ -25,16 +26,6 @@ async def _get_user(session: AsyncSession, user_id: int) -> User:
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
-
-
-async def _ensure_librarian(session: AsyncSession, librarian_id: int) -> User:
-    librarian = await _get_user(session, librarian_id)
-    role_name = librarian.role.name if librarian.role else None
-    if role_name not in {"Librarian", "Admin"}:
-        raise HTTPException(
-            status_code=403, detail="Only librarians can issue or return books"
-        )
-    return librarian
 
 
 async def _ensure_hall_has_seat(session: AsyncSession, user: User) -> Hall:
@@ -95,10 +86,13 @@ async def _resolve_copy(
 async def issue_book(
     payload: TransactionIssue,
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> TransactionRead:
     user = await _get_user(session, payload.user_id)
-    await _ensure_librarian(session, payload.librarian_id)
     await _ensure_hall_has_seat(session, user)
+
+    if payload.librarian_id and payload.librarian_id != current_user.id:
+        raise HTTPException(status_code=400, detail="Invalid librarian_id")
 
     copy = await _resolve_copy(session, payload.copy_id, payload.book_id)
     if copy.status != BookCopyStatus.Available:
@@ -113,19 +107,21 @@ async def issue_book(
     transaction = Transaction(
         user_id=user.id,
         copy_id=copy.id,
-        librarian_id=payload.librarian_id,
+        librarian_id=current_user.id,
         issue_date=issue_date,
         due_date=due_date,
     )
     session.add(transaction)
     await session.commit()
     await session.refresh(transaction)
-    return await get_transaction(transaction.id, session)
+    return await get_transaction(transaction.id, session, current_user)
 
 
 @router.post("/{transaction_id}/return", response_model=TransactionRead)
 async def return_book(
-    transaction_id: int, session: AsyncSession = Depends(get_session)
+    transaction_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> TransactionRead:
     result = await session.execute(
         select(Transaction)
@@ -152,7 +148,7 @@ async def return_book(
     transaction.copy.status = BookCopyStatus.Available
     await session.commit()
     await session.refresh(transaction)
-    return await get_transaction(transaction.id, session)
+    return await get_transaction(transaction.id, session, current_user)
 
 
 @router.get("", response_model=list[TransactionRead])
@@ -163,6 +159,7 @@ async def list_transactions(
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None, alias="to"),
     session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> list[TransactionRead]:
     query = select(Transaction).options(
         selectinload(Transaction.user).selectinload(User.role),
@@ -174,6 +171,12 @@ async def list_transactions(
 
     if user_id is not None:
         query = query.where(Transaction.user_id == user_id)
+
+    role_name = current_user.role.name if current_user.role else None
+    if role_name == "Reader":
+        query = query.where(Transaction.user_id == current_user.id)
+        if user_id is not None and user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
 
     if copy_id is not None:
         query = query.where(Transaction.copy_id == copy_id)
@@ -197,7 +200,9 @@ async def list_transactions(
 
 @router.get("/{transaction_id}", response_model=TransactionRead)
 async def get_transaction(
-    transaction_id: int, session: AsyncSession = Depends(get_session)
+    transaction_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> TransactionRead:
     result = await session.execute(
         select(Transaction)
@@ -213,4 +218,9 @@ async def get_transaction(
     transaction = result.scalars().first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
+
+    role_name = current_user.role.name if current_user.role else None
+    if role_name == "Reader" and transaction.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     return transaction
