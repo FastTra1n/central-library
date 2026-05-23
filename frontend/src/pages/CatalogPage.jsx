@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getBooks } from "../api/books.js";
@@ -7,6 +7,7 @@ import BookCard from "../components/BookCard.jsx";
 import Pagination from "../components/Pagination.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const placeholderCover =
   "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=600&q=80";
@@ -38,12 +39,16 @@ const mapBook = (book) => {
 
 const CatalogPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role_name || user?.role?.name || null;
+  const canManageBooks = role === "Librarian" || role === "Admin";
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [ratingValue, setRatingValue] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [genres, setGenres] = useState([]);
   const [books, setBooks] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -87,15 +92,20 @@ const CatalogPage = () => {
               ? false
               : undefined;
 
-        const data = await getBooks({
-          search: debouncedSearch || undefined,
-          genre_id: filters.genreId || undefined,
-          rating_min: filters.ratingMin || undefined,
-          available: availability,
-        });
+        const data = await getBooks(
+          {
+            search: debouncedSearch || undefined,
+            genre_id: filters.genreId || undefined,
+            rating_min: filters.ratingMin || undefined,
+            available: availability,
+            page,
+            limit: PAGE_SIZE,
+          },
+          { meta: true },
+        );
 
-        setBooks(data.map(mapBook));
-        setPage(1);
+        setBooks(data.items.map(mapBook));
+        setTotal(data.total);
       } catch (err) {
         setError(err.message || "Не удалось загрузить каталог");
       } finally {
@@ -104,13 +114,13 @@ const CatalogPage = () => {
     };
 
     fetchBooks();
+  }, [debouncedSearch, filters, page]);
+
+  useEffect(() => {
+    setPage(1);
   }, [debouncedSearch, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(books.length / PAGE_SIZE));
-  const pagedBooks = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return books.slice(start, start + PAGE_SIZE);
-  }, [books, page]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleOpenDetails = (book) => {
     setSelectedBook(book);
@@ -138,7 +148,7 @@ const CatalogPage = () => {
   };
 
   const activeRating = hoverRating || ratingValue;
-  const totalLabel = books.length;
+  const totalLabel = total;
 
   return (
     <div className="layout">
@@ -173,14 +183,16 @@ const CatalogPage = () => {
                   <i className="bi bi-funnel"></i>
                   Фильтры
                 </button>
-                <button
-                  className="button button--primary"
-                  type="button"
-                  onClick={() => navigate("/books")}
-                >
-                  <i className="bi bi-plus-lg"></i>
-                  Добавить книгу
-                </button>
+                {canManageBooks && (
+                  <button
+                    className="button button--primary"
+                    type="button"
+                    onClick={() => navigate("/books")}
+                  >
+                    <i className="bi bi-plus-lg"></i>
+                    Добавить книгу
+                  </button>
+                )}
               </div>
             </div>
 
@@ -278,7 +290,7 @@ const CatalogPage = () => {
             {error && <div className="catalog__subtitle">{error}</div>}
 
             <div className="catalog__grid">
-              {pagedBooks.map((book) => (
+              {books.map((book) => (
                 <BookCard
                   key={book.id}
                   book={book}
@@ -289,7 +301,7 @@ const CatalogPage = () => {
 
             <div className="catalog__footer">
               <span className="catalog__meta">
-                Показано {pagedBooks.length} из {books.length} книг
+                Показано {books.length} из {total} книг
               </span>
               <Pagination
                 page={page}

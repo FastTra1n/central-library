@@ -17,6 +17,8 @@ const BooksManagementPage = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
   const [books, setBooks] = useState([]);
+  const [inventoryBooks, setInventoryBooks] = useState([]);
+  const [inventoryTotal, setInventoryTotal] = useState(0);
   const [authors, setAuthors] = useState([]);
   const [genres, setGenres] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -82,6 +84,7 @@ const BooksManagementPage = () => {
       setTransactions(transactionsData);
       setUsers(usersData);
       setHalls(hallsData);
+      await fetchInventoryPage(1);
       setPage(1);
     } catch (err) {
       setError(err.message || "Не удалось загрузить данные");
@@ -90,9 +93,27 @@ const BooksManagementPage = () => {
     }
   };
 
+  const fetchInventoryPage = async (targetPage) => {
+    try {
+      const result = await getBooks(
+        { page: targetPage, limit: PAGE_SIZE },
+        { meta: true },
+      );
+      setInventoryBooks(result.items);
+      setInventoryTotal(result.total || 0);
+    } catch (err) {
+      setInventoryBooks([]);
+      setInventoryTotal(0);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchInventoryPage(page);
+  }, [page]);
 
   useEffect(() => {
     if (isIssueOpen) {
@@ -106,7 +127,7 @@ const BooksManagementPage = () => {
   }, [isIssueOpen]);
 
   const inventoryRows = useMemo(() => {
-    return books.map((book) => {
+    return inventoryBooks.map((book) => {
       const copies = book.copies || [];
       const available = copies.filter(
         (copy) => copy.status === "Available",
@@ -134,13 +155,9 @@ const BooksManagementPage = () => {
         statusType,
       };
     });
-  }, [books]);
+  }, [inventoryBooks]);
 
-  const totalPages = Math.max(1, Math.ceil(inventoryRows.length / PAGE_SIZE));
-  const pagedInventory = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return inventoryRows.slice(start, start + PAGE_SIZE);
-  }, [inventoryRows, page]);
+  const totalPages = Math.max(1, Math.ceil(inventoryTotal / PAGE_SIZE));
 
   const issuedTransactions = transactions.filter((item) => !item.return_date);
   const booksOnHands = issuedTransactions.length;
@@ -346,7 +363,7 @@ const BooksManagementPage = () => {
                   <span>Статус</span>
                   <span>Действия</span>
                 </div>
-                {pagedInventory.map((item) => (
+                {inventoryRows.map((item) => (
                   <div key={item.id} className="inventory-table__row">
                     <span className="inventory-table__isbn">{item.isbn}</span>
                     <div className="inventory-table__book">
@@ -374,8 +391,7 @@ const BooksManagementPage = () => {
               </div>
               <div className="inventory__table-footer">
                 <span className="inventory__table-meta">
-                  Показано {pagedInventory.length} из {inventoryRows.length}{" "}
-                  книг
+                  Показано {inventoryRows.length} из {inventoryTotal} книг
                 </span>
                 <Pagination
                   page={page}

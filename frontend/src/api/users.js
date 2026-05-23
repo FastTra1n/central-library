@@ -1,7 +1,13 @@
 import { buildQuery, request } from "./client.js";
 
-export const getUsers = (params = {}) =>
-  request(`/users${buildQuery(params)}`, { method: "GET" });
+export const getUsers = (params = {}, options = {}) =>
+  request(
+    `/users${buildQuery(params)}`,
+    { method: "GET" },
+    {
+      meta: options.meta,
+    },
+  );
 
 export const updateUser = (id, payload) =>
   request(`/users/${id}`, {

@@ -1,7 +1,10 @@
-import { clearAccessToken, getAccessToken, setAccessToken } from "../utils/auth.js";
+import {
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+} from "../utils/auth.js";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
 const parseResponse = async (response) => {
   if (response.status === 204) {
@@ -50,7 +53,7 @@ export const buildQuery = (params = {}) => {
 export const request = async (
   path,
   options = {},
-  { auth = true, retry = true } = {}
+  { auth = true, retry = true, meta = false } = {},
 ) => {
   const headers = { ...(options.headers || {}) };
   const body = options.body;
@@ -93,5 +96,27 @@ export const request = async (
     throw err;
   }
 
-  return parseResponse(response);
+  const data = await parseResponse(response);
+  if (meta) {
+    const totalHeader = Number(response.headers.get("x-total-count"));
+    const pageHeader = Number(response.headers.get("x-page"));
+    const limitHeader = Number(response.headers.get("x-limit"));
+
+    return {
+      items: Array.isArray(data) ? data : [],
+      total: Number.isNaN(totalHeader)
+        ? Array.isArray(data)
+          ? data.length
+          : 0
+        : totalHeader,
+      page: Number.isNaN(pageHeader) ? 1 : pageHeader,
+      limit: Number.isNaN(limitHeader)
+        ? Array.isArray(data)
+          ? data.length
+          : 0
+        : limitHeader,
+    };
+  }
+
+  return data;
 };

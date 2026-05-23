@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { login, register } from "../api/auth.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { isAuthenticated, setAccessToken } from "../utils/auth.js";
 
 const AuthPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { refresh } = useAuth();
   const redirectTo = location.state?.from || "/profile";
 
   const [mode, setMode] = useState("login");
@@ -61,6 +63,7 @@ const AuthPage = () => {
             });
 
       setAccessToken(data.access_token);
+      await refresh();
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(err.message || "Ошибка авторизации");
@@ -218,15 +221,13 @@ const AuthPage = () => {
               {loading
                 ? "Пожалуйста, подождите..."
                 : isLogin
-                ? "Войти"
-                : "Зарегистрироваться"}
+                  ? "Войти"
+                  : "Зарегистрироваться"}
             </button>
           </form>
 
           <div className="auth-footer">
-            <span>
-              {isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}
-            </span>
+            <span>{isLogin ? "Нет аккаунта?" : "Уже есть аккаунт?"}</span>
             <button
               className="auth-link"
               type="button"

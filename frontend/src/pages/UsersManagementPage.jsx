@@ -13,7 +13,9 @@ const placeholderAvatar =
 
 const UsersManagementPage = () => {
   const [users, setUsers] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [librariansCount, setLibrariansCount] = useState(0);
+  const [filteredTotal, setFilteredTotal] = useState(0);
   const [roles, setRoles] = useState([]);
 
   const [page, setPage] = useState(1);
@@ -29,22 +31,49 @@ const UsersManagementPage = () => {
   }, [search]);
 
   useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, roleFilter]);
+
+  useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       setError("");
       try {
-        const [rolesData, statsUsers, listUsers] = await Promise.all([
-          getRoles().catch(() => []),
-          getUsers().catch(() => []),
-          getUsers({
+        const rolesData = await getRoles().catch(() => []);
+        setRoles(rolesData);
+
+        const librarianRoleId = rolesData.find(
+          (role) => role.name === "Librarian",
+        )?.id;
+
+        const totalResponse = await getUsers(
+          { page: 1, limit: 1 },
+          { meta: true },
+        ).catch(() => ({ items: [], total: 0 }));
+        setTotalUsers(totalResponse.total || 0);
+
+        if (librarianRoleId) {
+          const librarianResponse = await getUsers(
+            { page: 1, limit: 1, role_id: librarianRoleId },
+            { meta: true },
+          ).catch(() => ({ items: [], total: 0 }));
+          setLibrariansCount(librarianResponse.total || 0);
+        } else {
+          setLibrariansCount(0);
+        }
+
+        const listResponse = await getUsers(
+          {
             search: debouncedSearch || undefined,
             role_id: roleFilter || undefined,
-          }).catch(() => []),
-        ]);
-        setRoles(rolesData);
-        setAllUsers(statsUsers);
-        setUsers(listUsers);
-        setPage(1);
+            page,
+            limit: PAGE_SIZE,
+          },
+          { meta: true },
+        ).catch(() => ({ items: [], total: 0 }));
+
+        setUsers(listResponse.items);
+        setFilteredTotal(listResponse.total || 0);
       } catch (err) {
         setError(err.message || "Не удалось загрузить пользователей");
       } finally {
@@ -53,7 +82,7 @@ const UsersManagementPage = () => {
     };
 
     fetchUsers();
-  }, [debouncedSearch, roleFilter]);
+  }, [debouncedSearch, roleFilter, page]);
 
   const roleMap = useMemo(() => {
     const map = new Map();
@@ -61,16 +90,7 @@ const UsersManagementPage = () => {
     return map;
   }, [roles]);
 
-  const totalUsers = allUsers.length;
-  const librariansCount = allUsers.filter(
-    (user) => user.role?.name === "Librarian",
-  ).length;
-
-  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
-  const pagedUsers = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return users.slice(start, start + PAGE_SIZE);
-  }, [users, page]);
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
 
   const canManageRoles = roles.length > 0;
 
@@ -78,13 +98,34 @@ const UsersManagementPage = () => {
     if (!roleId) return;
     try {
       await updateUserRole(userId, Number(roleId));
-      const updated = await getUsers({
-        search: debouncedSearch || undefined,
-        role_id: roleFilter || undefined,
-      });
-      setUsers(updated);
-      const updatedStats = await getUsers();
-      setAllUsers(updatedStats);
+      const listResponse = await getUsers(
+        {
+          search: debouncedSearch || undefined,
+          role_id: roleFilter || undefined,
+          page,
+          limit: PAGE_SIZE,
+        },
+        { meta: true },
+      ).catch(() => ({ items: [], total: 0 }));
+      setUsers(listResponse.items);
+      setFilteredTotal(listResponse.total || 0);
+
+      const totalResponse = await getUsers(
+        { page: 1, limit: 1 },
+        { meta: true },
+      ).catch(() => ({ items: [], total: 0 }));
+      setTotalUsers(totalResponse.total || 0);
+
+      const librarianRoleId = roles.find(
+        (role) => role.name === "Librarian",
+      )?.id;
+      if (librarianRoleId) {
+        const librarianResponse = await getUsers(
+          { page: 1, limit: 1, role_id: librarianRoleId },
+          { meta: true },
+        ).catch(() => ({ items: [], total: 0 }));
+        setLibrariansCount(librarianResponse.total || 0);
+      }
     } catch (err) {
       setError(err.message || "Не удалось изменить роль");
     }
@@ -183,7 +224,7 @@ const UsersManagementPage = () => {
                   <span>Дата регистрации</span>
                   <span>Действие</span>
                 </div>
-                {pagedUsers.map((user) => {
+                {users.map((user) => {
                   const roleName = user.role?.name || roleMap.get(user.role_id);
                   const roleType = roleName ? roleName.toLowerCase() : "reader";
                   return (
@@ -243,7 +284,7 @@ const UsersManagementPage = () => {
               </div>
               <div className="users__table-footer">
                 <span className="users__table-meta">
-                  Показано {pagedUsers.length} из {users.length}
+                  Показано {users.length} из {filteredTotal}
                 </span>
                 <Pagination
                   page={page}

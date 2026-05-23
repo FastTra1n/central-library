@@ -4,7 +4,9 @@ import HallsPage from "./pages/HallsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import BooksManagementPage from "./pages/BooksManagementPage.jsx";
 import UsersManagementPage from "./pages/UsersManagementPage.jsx";
+
 import AuthPage from "./pages/AuthPage.jsx";
+import ProtectedRoute from "./routes/ProtectedRoute.jsx";
 
 const App = () => {
   return (
@@ -13,10 +15,31 @@ const App = () => {
         <Route path="/" element={<Navigate to="/catalog" replace />} />
         <Route path="/catalog" element={<CatalogPage />} />
         <Route path="/halls" element={<HallsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/books" element={<BooksManagementPage />} />
-        <Route path="/users" element={<UsersManagementPage />} />
+        <Route
+          path="/books"
+          element={
+            <ProtectedRoute roles={["Librarian", "Admin"]}>
+              <BooksManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute roles={["Admin"]}>
+              <UsersManagementPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/catalog" replace />} />
       </Routes>
     </BrowserRouter>

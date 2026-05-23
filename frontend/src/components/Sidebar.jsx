@@ -1,24 +1,42 @@
 import { NavLink } from "react-router-dom";
 
-const navItems = [
-  { key: "catalog", label: "Каталог", icon: "bi-grid", path: "/catalog" },
-  { key: "halls", label: "Залы", icon: "bi-door-open", path: "/halls" },
-  {
-    key: "books",
-    label: "Управление книгами",
-    icon: "bi-book",
-    path: "/books",
-  },
-  {
-    key: "users",
-    label: "Управление пользователями",
-    icon: "bi-people",
-    path: "/users",
-  },
-  { key: "profile", label: "Профиль", icon: "bi-person", path: "/profile" },
-];
+import { useAuth } from "../context/AuthContext.jsx";
+import { isAuthenticated } from "../utils/auth.js";
+
+const resolveRole = (user) => user?.role_name || user?.role?.name || null;
 
 const Sidebar = () => {
+  const { user } = useAuth();
+  const role = resolveRole(user);
+  const isLibrarian = role === "Librarian" || role === "Admin";
+  const isAdmin = role === "Admin";
+  const profilePath = isAuthenticated() ? "/profile" : "/auth";
+
+  const navItems = [
+    { key: "catalog", label: "Каталог", icon: "bi-grid", path: "/catalog" },
+    { key: "halls", label: "Залы", icon: "bi-door-open", path: "/halls" },
+    ...(isLibrarian
+      ? [
+          {
+            key: "books",
+            label: "Управление книгами",
+            icon: "bi-book",
+            path: "/books",
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          {
+            key: "users",
+            label: "Управление пользователями",
+            icon: "bi-people",
+            path: "/users",
+          },
+        ]
+      : []),
+    { key: "profile", label: "Профиль", icon: "bi-person", path: profilePath },
+  ];
   return (
     <div className="sidebar">
       <div className="sidebar__brand">
