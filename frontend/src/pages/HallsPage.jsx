@@ -1,76 +1,79 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { getFreeSeats } from "../api/analytics.js";
+import { getHalls } from "../api/halls.js";
+import HallCard from "../components/HallCard.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import HallCard from "../components/HallCard.jsx";
 
-const halls = [
-  {
-    id: 1,
-    name: "Главный читальный зал",
-    specialization: "Общий",
-    status: "Открыто",
-    statusType: "open",
-    occupied: 42,
-    capacity: 120,
-    tags: ["Wi-Fi", "Тихая зона"],
-    description:
-      "Основной зал для самостоятельной работы и чтения. Подходит для всех категорий читателей.",
-    image:
-      "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 2,
-    name: "Медиатека",
-    specialization: "Мультимедиа",
-    status: "Открыто",
-    statusType: "open",
-    occupied: 15,
-    capacity: 40,
-    tags: ["Компьютеры", "Печать"],
-    description:
-      "Зал с компьютерами, доступом к электронным ресурсам и зонами для командной работы.",
-    image:
-      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 3,
-    name: "Зал редких книг",
-    specialization: "История и редкие издания",
-    status: "Ограничено",
-    statusType: "limited",
-    occupied: 4,
-    capacity: 12,
-    tags: ["Просмотр по записи", "Полная тишина"],
-    description:
-      "Доступ по предварительной записи. Условия — бережное обращение и полная тишина.",
-    image:
-      "https://images.unsplash.com/photo-1509021436665-8f07dbf5bf1d?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    id: 4,
-    name: "Зал периодики",
-    specialization: "Периодические издания",
-    status: "Открыто",
-    statusType: "open",
-    occupied: 28,
-    capacity: 60,
-    tags: ["Лаунж-зона", "Свежая пресса"],
-    description:
-      "Свежие журналы и газеты, комфортные места и спокойная атмосфера.",
-    image:
-      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
-const totalSeats = halls.reduce((sum, hall) => sum + hall.capacity, 0);
-const occupiedSeats = halls.reduce((sum, hall) => sum + hall.occupied, 0);
-const freeSeats = totalSeats - occupiedSeats;
-const utilization = totalSeats
-  ? Math.round((occupiedSeats / totalSeats) * 100)
-  : 0;
+const fallbackImage =
+  "https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=900&q=80";
 
 const HallsPage = () => {
+  const [halls, setHalls] = useState([]);
   const [selectedHall, setSelectedHall] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchHalls = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [hallsData, freeSeatsData] = await Promise.all([
+          getHalls(),
+          getFreeSeats().catch(() => []),
+        ]);
+
+        const freeMap = new Map(
+          (freeSeatsData || []).map((item) => [item.hall_id, item]),
+        );
+
+        const mapped = hallsData.map((hall) => {
+          const freeInfo = freeMap.get(hall.id);
+          const capacity = hall.seats ?? 0;
+          const occupied = freeInfo?.occupied ?? 0;
+          const free =
+            freeInfo?.free ?? (capacity ? Math.max(capacity - occupied, 0) : 0);
+          const hasSeats = hall.seats !== null && hall.seats !== undefined;
+          const status = hasSeats
+            ? free > 0
+              ? "Открыто"
+              : "Закрыто"
+            : "Открыто";
+          const statusType = hasSeats ? (free > 0 ? "open" : "closed") : "open";
+
+          return {
+            ...hall,
+            occupied,
+            capacity: capacity || occupied,
+            free,
+            status,
+            statusType,
+            tags: hall.specialization ? [hall.specialization] : [],
+          };
+        });
+
+        setHalls(mapped);
+      } catch (err) {
+        setError(err.message || "Не удалось загрузить залы");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHalls();
+  }, []);
+
+  const totalSeats = halls.reduce((sum, hall) => sum + (hall.capacity || 0), 0);
+  const occupiedSeats = halls.reduce(
+    (sum, hall) => sum + (hall.occupied || 0),
+    0,
+  );
+  const freeSeats = Math.max(totalSeats - occupiedSeats, 0);
+  const utilization = totalSeats
+    ? Math.round((occupiedSeats / totalSeats) * 100)
+    : 0;
 
   const handleOpenDetails = (hall) => {
     setSelectedHall(hall);
@@ -79,6 +82,13 @@ const HallsPage = () => {
   const handleCloseDetails = () => {
     setSelectedHall(null);
   };
+
+  const summaryText = useMemo(() => {
+    if (loading) return "Загружаем данные о залах...";
+    if (error) return error;
+    return "Исследуйте пространства для работы и чтения. Выберите зал по специализации и доступным местам.";
+  }, [loading, error]);
+
   return (
     <div className="layout">
       <aside className="layout__sidebar">
@@ -90,10 +100,7 @@ const HallsPage = () => {
           <section className="halls">
             <div className="halls__header">
               <h1 className="halls__title">Библиотечные залы</h1>
-              <p className="halls__subtitle">
-                Исследуйте пространства для работы и чтения. Выберите зал по
-                специализации и доступным местам.
-              </p>
+              <p className="halls__subtitle">{summaryText}</p>
             </div>
 
             <div className="halls__body">
@@ -157,7 +164,9 @@ const HallsPage = () => {
               </button>
               <div
                 className="details-panel__cover"
-                style={{ backgroundImage: `url(${selectedHall.image})` }}
+                style={{
+                  backgroundImage: `url(${selectedHall.image || fallbackImage})`,
+                }}
               >
                 <span
                   className={`details-panel__badge details-panel__badge--${selectedHall.statusType}`}
@@ -167,12 +176,12 @@ const HallsPage = () => {
               </div>
               <h2 className="details-panel__title">{selectedHall.name}</h2>
               <p className="details-panel__author">
-                {selectedHall.specialization}
+                {selectedHall.specialization || "Общий"}
               </p>
               <div className="details-panel__stats">
                 <div className="details-panel__stat">
                   <span className="details-panel__stat-value">
-                    {selectedHall.capacity - selectedHall.occupied}
+                    {selectedHall.free ?? "—"}
                   </span>
                   <span className="details-panel__stat-label">
                     свободных мест
@@ -181,7 +190,7 @@ const HallsPage = () => {
                 <div className="details-panel__divider"></div>
                 <div className="details-panel__stat">
                   <span className="details-panel__stat-value">
-                    {selectedHall.capacity}
+                    {selectedHall.capacity || "—"}
                   </span>
                   <span className="details-panel__stat-label">всего мест</span>
                 </div>
@@ -189,13 +198,17 @@ const HallsPage = () => {
               <div className="details-panel__section">
                 <h3 className="details-panel__section-title">О зале</h3>
                 <p className="details-panel__text">
-                  {selectedHall.description}
+                  {selectedHall.description ||
+                    "Комфортное пространство для работы и чтения."}
                 </p>
               </div>
               <div className="details-panel__section">
                 <h3 className="details-panel__section-title">Особенности</h3>
                 <div className="details-panel__tags">
-                  {selectedHall.tags.map((tag) => (
+                  {(selectedHall.tags?.length
+                    ? selectedHall.tags
+                    : ["Тихая зона"]
+                  ).map((tag) => (
                     <span key={tag} className="details-panel__tag">
                       {tag}
                     </span>
