@@ -2,7 +2,11 @@ import { useNavigate } from "react-router-dom";
 
 import { isAuthenticated } from "../utils/auth.js";
 
-const TopBar = ({ searchPlaceholder = "Поиск книг или авторов..." }) => {
+const TopBar = ({
+  searchPlaceholder = "Поиск книг или авторов...",
+  searchValue,
+  onSearchChange,
+}) => {
   const navigate = useNavigate();
 
   const handleProfileClick = () => {
@@ -23,6 +27,8 @@ const TopBar = ({ searchPlaceholder = "Поиск книг или авторов
             className="topbar__search-input"
             type="text"
             placeholder={searchPlaceholder}
+            value={typeof searchValue === "string" ? searchValue : undefined}
+            onChange={(event) => onSearchChange?.(event.target.value)}
           />
         </label>
         <button

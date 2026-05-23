@@ -2,9 +2,11 @@ const placeholderCover =
   "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=600&q=80";
 
 const BookCard = ({ book, onDetails }) => {
-  const statusClass = `book-card__status book-card__status--${book.statusType}`;
+  const statusType = book.statusType || "available";
+  const statusClass = `book-card__status book-card__status--${statusType}`;
 
   const cover = book.cover || placeholderCover;
+  const rating = Number.isFinite(book.rating) ? book.rating : 0;
 
   return (
     <article className="book-card">
@@ -15,13 +17,13 @@ const BookCard = ({ book, onDetails }) => {
         <span className={statusClass}>{book.status}</span>
       </div>
       <div className="book-card__body">
-        <span className="book-card__genre">{book.genre}</span>
+        <span className="book-card__genre">{book.genre || "Без жанра"}</span>
         <h3 className="book-card__title">{book.title}</h3>
-        <p className="book-card__author">{book.author}</p>
+        <p className="book-card__author">{book.author || "—"}</p>
         <div className="book-card__footer">
           <span className="book-card__rating">
             <i className="bi bi-star"></i>
-            {book.rating}
+            {rating.toFixed(1)}
           </span>
           <button
             className="book-card__link"
