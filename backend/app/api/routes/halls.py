@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_roles
@@ -12,8 +12,26 @@ router = APIRouter(prefix="/halls", tags=["halls"])
 
 
 @router.get("", response_model=list[HallRead])
-async def list_halls(session: AsyncSession = Depends(get_session)) -> list[HallRead]:
-    result = await session.execute(select(Hall).order_by(Hall.id))
+async def list_halls(
+    response: Response,
+    page: int = Query(1, ge=1),
+    limit: int | None = Query(None, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+) -> list[HallRead]:
+    query = select(Hall)
+
+    total = await session.scalar(
+        select(func.count()).select_from(query.order_by(None).subquery())
+    )
+
+    if limit:
+        query = query.offset((page - 1) * limit).limit(limit)
+
+    result = await session.execute(query.order_by(Hall.id))
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Page"] = str(page)
+    if limit:
+        response.headers["X-Limit"] = str(limit)
     return list(result.scalars().all())
 
 

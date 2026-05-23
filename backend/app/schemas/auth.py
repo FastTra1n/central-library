@@ -55,6 +55,7 @@ class AuthUserResponse(BaseModel):
     full_name: str
     email: EmailStr
     role_id: int
+    role_name: str | None = None
     card_number: str
     phone: str | None = None
     hall_id: int | None = None

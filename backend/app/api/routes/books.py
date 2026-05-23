@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import exists, or_, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,11 +17,14 @@ router = APIRouter(prefix="/books", tags=["books"])
 
 @router.get("", response_model=list[BookRead])
 async def list_books(
+    response: Response,
     search: str | None = None,
     genre_id: int | None = None,
     author_id: int | None = None,
     rating_min: int | None = None,
     available: bool | None = None,
+    page: int = Query(1, ge=1),
+    limit: int | None = Query(None, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
 ) -> list[BookRead]:
     query = select(Book).options(
@@ -56,7 +59,18 @@ async def list_books(
         )
         query = query.where(available_exists if available else ~available_exists)
 
+    total = await session.scalar(
+        select(func.count()).select_from(query.order_by(None).subquery())
+    )
+
+    if limit:
+        query = query.offset((page - 1) * limit).limit(limit)
+
     result = await session.execute(query.order_by(Book.id))
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Page"] = str(page)
+    if limit:
+        response.headers["X-Limit"] = str(limit)
     return list(result.scalars().unique().all())
 
 

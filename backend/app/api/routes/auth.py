@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from jose import JWTError, jwt
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -32,11 +33,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def _build_user_response(user: User) -> AuthUserResponse:
+    role_name = user.role.name if getattr(user, "role", None) else None
     return AuthUserResponse(
         id=user.id,
         full_name=user.full_name,
         email=user.email,
         role_id=user.role_id,
+        role_name=role_name,
         card_number=user.card_number,
         phone=user.phone,
         hall_id=user.hall_id,
@@ -119,7 +122,11 @@ async def register_user(
     )
     session.add(user)
     await session.commit()
-    await session.refresh(user)
+
+    result = await session.execute(
+        select(User).where(User.id == user.id).options(selectinload(User.role))
+    )
+    user = result.scalars().first()
 
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))
@@ -139,9 +146,9 @@ async def login_user(
     session: AsyncSession = Depends(get_session),
 ) -> Any:
     result = await session.execute(
-        select(User).where(
-            or_(User.email == payload.identifier, User.phone == payload.identifier)
-        )
+        select(User)
+        .where(or_(User.email == payload.identifier, User.phone == payload.identifier))
+        .options(selectinload(User.role))
     )
     user = result.scalars().first()
     if not user or not verify_password(payload.password, user.password):
@@ -180,7 +187,10 @@ async def refresh_token(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token") from None
 
-    user = await session.get(User, int(user_id))
+    result = await session.execute(
+        select(User).where(User.id == int(user_id)).options(selectinload(User.role))
+    )
+    user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 

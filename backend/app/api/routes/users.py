@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -15,9 +15,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("", response_model=list[UserRead])
 async def list_users(
+    response: Response,
     search: str | None = None,
     role_id: int | None = None,
     hall_id: int | None = None,
+    page: int = Query(1, ge=1),
+    limit: int | None = Query(None, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(require_roles("Librarian", "Admin")),
 ) -> list[UserRead]:
@@ -37,7 +40,18 @@ async def list_users(
     if hall_id:
         query = query.where(User.hall_id == hall_id)
 
+    total = await session.scalar(
+        select(func.count()).select_from(query.order_by(None).subquery())
+    )
+
+    if limit:
+        query = query.offset((page - 1) * limit).limit(limit)
+
     result = await session.execute(query.order_by(User.id))
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Page"] = str(page)
+    if limit:
+        response.headers["X-Limit"] = str(limit)
     return list(result.scalars().unique().all())
 
 
