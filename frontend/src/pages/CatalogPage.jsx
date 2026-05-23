@@ -1,115 +1,116 @@
-import { useState } from "react";
-import Sidebar from "../components/Sidebar.jsx";
-import TopBar from "../components/TopBar.jsx";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { getBooks } from "../api/books.js";
+import { getGenres } from "../api/genres.js";
 import BookCard from "../components/BookCard.jsx";
 import Pagination from "../components/Pagination.jsx";
+import Sidebar from "../components/Sidebar.jsx";
+import TopBar from "../components/TopBar.jsx";
 
 const placeholderCover =
   "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=600&q=80";
 
-const books = [
-  {
-    id: 1,
-    title: "Мастер и Маргарита",
-    author: "Михаил Булгаков",
-    genre: "Классика",
-    rating: 4.8,
-    status: "В наличии",
-    statusType: "available",
-    pages: 480,
+const PAGE_SIZE = 8;
+
+const mapBook = (book) => {
+  const totalCopies = book.copies?.length ?? 0;
+  const availableCopies =
+    book.copies?.filter((copy) => copy.status === "Available").length ?? 0;
+  const statusType = availableCopies > 0 ? "available" : "borrowed";
+  const status = availableCopies > 0 ? "В наличии" : "Выдана";
+  const author = book.authors?.map((item) => item.full_name).join(", ");
+  const genre = book.genre?.name || "Без жанра";
+
+  return {
+    ...book,
+    rating: Number(book.rating || 0),
+    author: author || "—",
+    genre,
+    status,
+    statusType,
+    totalCopies,
+    availableCopies,
     description:
-      "Культовый роман Михаила Булгакова. Действие разворачивается в Москве 1930-х годов, которую посещает Воланд со своей свитой.",
-  },
-  {
-    id: 2,
-    title: "Убийство в Восточном экспрессе",
-    author: "Агата Кристи",
-    genre: "Детектив",
-    rating: 4.9,
-    status: "Выдана",
-    statusType: "borrowed",
-    pages: 256,
-    description:
-      "Пуаро расследует убийство в поезде, который застрял в снегах. Классическая загадка Агаты Кристи.",
-  },
-  {
-    id: 3,
-    title: "Дюна",
-    author: "Фрэнк Герберт",
-    genre: "Фантастика",
-    rating: 5.0,
-    status: "В наличии",
-    statusType: "available",
-    pages: 544,
-    description:
-      "Эпическая сага о пустынной планете Арракис, борьбе за власть и пророчествах.",
-  },
-  {
-    id: 4,
-    title: "1984",
-    author: "Джордж Оруэлл",
-    genre: "Классика",
-    rating: 4.7,
-    status: "В наличии",
-    statusType: "available",
-    pages: 328,
-    description:
-      "Антиутопия о тотальном контроле и борьбе за свободу личности в мире Большого Брата.",
-  },
-  {
-    id: 5,
-    title: "Преступление и наказание",
-    author: "Фёдор Достоевский",
-    genre: "Классика",
-    rating: 4.7,
-    status: "В наличии",
-    statusType: "available",
-    pages: 608,
-    description:
-      "Роман о моральных поисках и трагедии Раскольникова, исследование природы преступления.",
-  },
-  {
-    id: 6,
-    title: "Война и мир",
-    author: "Лев Толстой",
-    genre: "Классика",
-    rating: 4.8,
-    status: "В наличии",
-    statusType: "available",
-    pages: 1225,
-    description:
-      "Масштабная хроника российской жизни на фоне войны 1812 года и истории семей Ростовых и Болконских.",
-  },
-  {
-    id: 7,
-    title: "Медный всадник",
-    author: "Александр Пушкин",
-    genre: "Классика",
-    rating: 4.5,
-    status: "В наличии",
-    statusType: "available",
-    pages: 160,
-    description: "Поэма о Петербурге, судьбе Евгения и величии города на Неве.",
-  },
-  {
-    id: 8,
-    title: "Вий",
-    author: "Николай Гоголь",
-    genre: "Классика",
-    rating: 4.9,
-    status: "В наличии",
-    statusType: "available",
-    pages: 224,
-    description:
-      "Мистическая история, где страх и вера переплетаются в гоголевском стиле.",
-  },
-];
+      book.description || `Жанр: ${genre}. Автор: ${author || "не указан"}.`,
+  };
+};
 
 const CatalogPage = () => {
+  const navigate = useNavigate();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [ratingValue, setRatingValue] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [genres, setGenres] = useState([]);
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filters, setFilters] = useState({
+    available: true,
+    borrowed: true,
+    genreId: "",
+    ratingMin: 0,
+  });
+  const [draftFilters, setDraftFilters] = useState(filters);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const fetchGenres = async () => {
+      try {
+        const data = await getGenres();
+        setGenres(data);
+      } catch (err) {
+        setGenres([]);
+      }
+    };
+
+    fetchGenres();
+  }, []);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const availability =
+          filters.available && !filters.borrowed
+            ? true
+            : !filters.available && filters.borrowed
+              ? false
+              : undefined;
+
+        const data = await getBooks({
+          search: debouncedSearch || undefined,
+          genre_id: filters.genreId || undefined,
+          rating_min: filters.ratingMin || undefined,
+          available: availability,
+        });
+
+        setBooks(data.map(mapBook));
+        setPage(1);
+      } catch (err) {
+        setError(err.message || "Не удалось загрузить каталог");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [debouncedSearch, filters]);
+
+  const totalPages = Math.max(1, Math.ceil(books.length / PAGE_SIZE));
+  const pagedBooks = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return books.slice(start, start + PAGE_SIZE);
+  }, [books, page]);
 
   const handleOpenDetails = (book) => {
     setSelectedBook(book);
@@ -121,21 +122,44 @@ const CatalogPage = () => {
     setSelectedBook(null);
   };
 
+  const handleApplyFilters = () => {
+    setFilters(draftFilters);
+  };
+
+  const handleResetFilters = () => {
+    const next = {
+      available: true,
+      borrowed: true,
+      genreId: "",
+      ratingMin: 0,
+    };
+    setDraftFilters(next);
+    setFilters(next);
+  };
+
   const activeRating = hoverRating || ratingValue;
+  const totalLabel = books.length;
+
   return (
     <div className="layout">
       <aside className="layout__sidebar">
         <Sidebar />
       </aside>
       <div className="layout__main">
-        <TopBar searchPlaceholder="Поиск книг или авторов..." />
+        <TopBar
+          searchPlaceholder="Поиск книг или авторов..."
+          searchValue={search}
+          onSearchChange={setSearch}
+        />
         <main className="layout__content">
           <section className="catalog">
             <div className="catalog__header">
               <div className="catalog__titles">
                 <h1 className="catalog__title">Каталог книг</h1>
                 <p className="catalog__subtitle">
-                  Исследуйте нашу коллекцию из 12,450 произведений
+                  {loading
+                    ? "Загружаем каталог..."
+                    : `Исследуйте нашу коллекцию из ${totalLabel} книг`}
                 </p>
               </div>
               <div className="catalog__actions">
@@ -149,7 +173,11 @@ const CatalogPage = () => {
                   <i className="bi bi-funnel"></i>
                   Фильтры
                 </button>
-                <button className="button button--primary" type="button">
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={() => navigate("/books")}
+                >
                   <i className="bi bi-plus-lg"></i>
                   Добавить книгу
                 </button>
@@ -162,20 +190,50 @@ const CatalogPage = () => {
                   <div className="catalog-filters__group">
                     <span className="catalog-filters__label">Статус</span>
                     <label className="catalog-filters__check">
-                      <input type="checkbox" defaultChecked />В наличии
+                      <input
+                        type="checkbox"
+                        checked={draftFilters.available}
+                        onChange={(event) =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            available: event.target.checked,
+                          }))
+                        }
+                      />
+                      В наличии
                     </label>
                     <label className="catalog-filters__check">
-                      <input type="checkbox" />
+                      <input
+                        type="checkbox"
+                        checked={draftFilters.borrowed}
+                        onChange={(event) =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            borrowed: event.target.checked,
+                          }))
+                        }
+                      />
                       Выдана
                     </label>
                   </div>
                   <div className="catalog-filters__group">
                     <span className="catalog-filters__label">Жанр</span>
-                    <select className="catalog-filters__select" defaultValue="">
+                    <select
+                      className="catalog-filters__select"
+                      value={draftFilters.genreId}
+                      onChange={(event) =>
+                        setDraftFilters((prev) => ({
+                          ...prev,
+                          genreId: event.target.value,
+                        }))
+                      }
+                    >
                       <option value="">Все жанры</option>
-                      <option value="classic">Классика</option>
-                      <option value="detective">Детектив</option>
-                      <option value="fantasy">Фантастика</option>
+                      {genres.map((genre) => (
+                        <option key={genre.id} value={genre.id}>
+                          {genre.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="catalog-filters__group">
@@ -183,16 +241,33 @@ const CatalogPage = () => {
                     <input
                       className="catalog-filters__range"
                       type="range"
-                      min="1"
+                      min="0"
                       max="5"
-                      defaultValue="4"
+                      value={draftFilters.ratingMin}
+                      onChange={(event) =>
+                        setDraftFilters((prev) => ({
+                          ...prev,
+                          ratingMin: Number(event.target.value),
+                        }))
+                      }
                     />
+                    <span className="catalog-filters__check">
+                      от {draftFilters.ratingMin}
+                    </span>
                   </div>
                   <div className="catalog-filters__actions">
-                    <button className="button button--light" type="button">
+                    <button
+                      className="button button--light"
+                      type="button"
+                      onClick={handleResetFilters}
+                    >
                       Сбросить
                     </button>
-                    <button className="button button--primary" type="button">
+                    <button
+                      className="button button--primary"
+                      type="button"
+                      onClick={handleApplyFilters}
+                    >
                       Применить
                     </button>
                   </div>
@@ -200,8 +275,10 @@ const CatalogPage = () => {
               </div>
             )}
 
+            {error && <div className="catalog__subtitle">{error}</div>}
+
             <div className="catalog__grid">
-              {books.map((book) => (
+              {pagedBooks.map((book) => (
                 <BookCard
                   key={book.id}
                   book={book}
@@ -211,8 +288,14 @@ const CatalogPage = () => {
             </div>
 
             <div className="catalog__footer">
-              <span className="catalog__meta">Показано 8 из 12,450 книг</span>
-              <Pagination />
+              <span className="catalog__meta">
+                Показано {pagedBooks.length} из {books.length} книг
+              </span>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+              />
             </div>
           </section>
         </main>
@@ -259,16 +342,16 @@ const CatalogPage = () => {
               <div className="details-panel__stats">
                 <div className="details-panel__stat">
                   <span className="details-panel__stat-value">
-                    {selectedBook.pages}
+                    {selectedBook.year || "—"}
                   </span>
-                  <span className="details-panel__stat-label">страниц</span>
+                  <span className="details-panel__stat-label">год</span>
                 </div>
                 <div className="details-panel__divider"></div>
                 <div className="details-panel__stat">
                   <span className="details-panel__stat-value">
-                    {selectedBook.rating.toFixed(1)}
+                    {selectedBook.availableCopies}
                   </span>
-                  <span className="details-panel__stat-label">рейтинг</span>
+                  <span className="details-panel__stat-label">в наличии</span>
                 </div>
               </div>
               <div className="details-panel__section">
