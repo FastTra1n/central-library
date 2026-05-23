@@ -1,59 +1,288 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { createAuthor, getAuthors } from "../api/authors.js";
+import { createBook, getBooks } from "../api/books.js";
+import { getGenres } from "../api/genres.js";
+import { getHalls } from "../api/halls.js";
+import { issueBook, getTransactions } from "../api/transactions.js";
+import { getUsers } from "../api/users.js";
+import Pagination from "../components/Pagination.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
-import Pagination from "../components/Pagination.jsx";
+import { formatDateTime, isOverdue, toInputDate } from "../utils/date.js";
 
-const inventory = [
-  {
-    id: 1,
-    isbn: "978-5-699-12014-7",
-    title: "Мастер и Маргарита",
-    author: "Михаил Булгаков",
-    category: "Классика",
-    status: "В наличии",
-    statusType: "available",
-  },
-  {
-    id: 2,
-    isbn: "978-5-17-080115-2",
-    title: "1984",
-    author: "Джордж Оруэлл",
-    category: "Антиутопия",
-    status: "Выдана",
-    statusType: "borrowed",
-  },
-  {
-    id: 3,
-    isbn: "978-5-389-06256-6",
-    title: "Цветы для Элджернона",
-    author: "Дэниел Киз",
-    category: "Роман",
-    status: "Забронирована",
-    statusType: "reserved",
-  },
-];
-
-const activity = [
-  {
-    id: 1,
-    title: "Новое поступление в каталог",
-    subtitle:
-      "«Цифровая крепость» Дэна Брауна была добавлена в фонд читального зала №1.",
-    time: "15 минут назад",
-    tone: "primary",
-  },
-  {
-    id: 2,
-    title: "Регистрация нового пользователя",
-    subtitle: "Иван Иванов (ID: 6432) получил читательский билет.",
-    time: "1 час назад",
-    tone: "warning",
-  },
-];
+const PAGE_SIZE = 6;
 
 const BooksManagementPage = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
+  const [books, setBooks] = useState([]);
+  const [authors, setAuthors] = useState([]);
+  const [genres, setGenres] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  const [halls, setHalls] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [bookForm, setBookForm] = useState({
+    title: "",
+    author: "",
+    year: "",
+    genreId: "",
+    cipher: "",
+  });
+  const [issueForm, setIssueForm] = useState({
+    userId: "",
+    bookId: "",
+    dueDate: "",
+  });
+  const [formError, setFormError] = useState("");
+  const [issueError, setIssueError] = useState("");
+
+  const readers = useMemo(() => {
+    return users.filter((user) => {
+      if (user.role?.name) {
+        return user.role.name === "Reader";
+      }
+      return true;
+    });
+  }, [users]);
+
+  const hallsMap = useMemo(() => {
+    const map = new Map();
+    halls.forEach((hall) => map.set(hall.id, hall));
+    return map;
+  }, [halls]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [
+        booksData,
+        authorsData,
+        genresData,
+        transactionsData,
+        usersData,
+        hallsData,
+      ] = await Promise.all([
+        getBooks(),
+        getAuthors(),
+        getGenres(),
+        getTransactions().catch(() => []),
+        getUsers().catch(() => []),
+        getHalls(),
+      ]);
+
+      setBooks(booksData);
+      setAuthors(authorsData);
+      setGenres(genresData);
+      setTransactions(transactionsData);
+      setUsers(usersData);
+      setHalls(hallsData);
+      setPage(1);
+    } catch (err) {
+      setError(err.message || "Не удалось загрузить данные");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (isIssueOpen) {
+      const defaultDue = new Date();
+      defaultDue.setDate(defaultDue.getDate() + 14);
+      setIssueForm((prev) => ({
+        ...prev,
+        dueDate: prev.dueDate || toInputDate(defaultDue),
+      }));
+    }
+  }, [isIssueOpen]);
+
+  const inventoryRows = useMemo(() => {
+    return books.map((book) => {
+      const copies = book.copies || [];
+      const available = copies.filter(
+        (copy) => copy.status === "Available",
+      ).length;
+      const borrowed = copies.filter(
+        (copy) => copy.status === "Borrowed",
+      ).length;
+      const statusType =
+        available > 0 ? "available" : borrowed > 0 ? "borrowed" : "reserved";
+      const status =
+        available > 0
+          ? "В наличии"
+          : borrowed > 0
+            ? "Выдана"
+            : "Нет экземпляров";
+      const author = book.authors?.map((item) => item.full_name).join(", ");
+
+      return {
+        id: book.id,
+        isbn: copies[0]?.cipher || "—",
+        title: book.title,
+        author: author || "—",
+        category: book.genre?.name || "Без жанра",
+        status,
+        statusType,
+      };
+    });
+  }, [books]);
+
+  const totalPages = Math.max(1, Math.ceil(inventoryRows.length / PAGE_SIZE));
+  const pagedInventory = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return inventoryRows.slice(start, start + PAGE_SIZE);
+  }, [inventoryRows, page]);
+
+  const issuedTransactions = transactions.filter((item) => !item.return_date);
+  const booksOnHands = issuedTransactions.length;
+  const overdueCount = issuedTransactions.filter((item) =>
+    isOverdue(item.due_date),
+  ).length;
+
+  const booksMap = useMemo(() => {
+    const map = new Map();
+    books.forEach((book) => map.set(book.id, book));
+    return map;
+  }, [books]);
+
+  const activityItems = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => {
+        const aDate = new Date(a.return_date || a.issue_date).getTime();
+        const bDate = new Date(b.return_date || b.issue_date).getTime();
+        return bDate - aDate;
+      })
+      .slice(0, 5)
+      .map((item) => {
+        const copy = item.copy;
+        const book = booksMap.get(copy?.book_id);
+        const title = book?.title || "Книга";
+        const isReturned = Boolean(item.return_date);
+        return {
+          id: item.id,
+          title: isReturned
+            ? `Возврат книги: «${title}»`
+            : `Выдача книги: «${title}»`,
+          subtitle: item.user ? `Читатель: ${item.user.full_name}` : "",
+          time: formatDateTime(item.return_date || item.issue_date),
+          tone: isReturned ? "success" : "primary",
+        };
+      });
+  }, [transactions, booksMap]);
+
+  const handleBookFormChange = (field) => (event) => {
+    setBookForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const handleAddBook = async () => {
+    setFormError("");
+
+    if (!bookForm.title.trim()) {
+      setFormError("Введите название книги");
+      return;
+    }
+
+    let authorId = null;
+    const authorName = bookForm.author.trim();
+    if (authorName) {
+      const existing = authors.find(
+        (item) => item.full_name.toLowerCase() === authorName.toLowerCase(),
+      );
+      if (existing) {
+        authorId = existing.id;
+      } else {
+        try {
+          const created = await createAuthor({ full_name: authorName });
+          authorId = created.id;
+          setAuthors((prev) => [...prev, created]);
+        } catch (err) {
+          setFormError(err.message || "Не удалось создать автора");
+          return;
+        }
+      }
+    }
+
+    const genreId = bookForm.genreId ? Number(bookForm.genreId) : null;
+
+    const payload = {
+      title: bookForm.title.trim(),
+      genre_id: genreId || null,
+      year: bookForm.year ? Number(bookForm.year) : null,
+      rating: 0,
+      author_ids: authorId ? [authorId] : undefined,
+      copy_ciphers: bookForm.cipher ? [bookForm.cipher.trim()] : undefined,
+    };
+
+    try {
+      await createBook(payload);
+      setIsAddOpen(false);
+      setBookForm({ title: "", author: "", year: "", genreId: "", cipher: "" });
+      await fetchData();
+    } catch (err) {
+      setFormError(err.message || "Не удалось добавить книгу");
+    }
+  };
+
+  const handleIssueChange = (field) => (event) => {
+    setIssueForm((prev) => ({ ...prev, [field]: event.target.value }));
+  };
+
+  const selectedReader = readers.find(
+    (reader) => reader.id === Number(issueForm.userId),
+  );
+  const selectedBook = books.find(
+    (book) => book.id === Number(issueForm.bookId),
+  );
+  const selectedHall = selectedReader
+    ? hallsMap.get(selectedReader.hall_id)
+    : null;
+  const availableCopies = selectedBook?.copies?.filter(
+    (copy) => copy.status === "Available",
+  ).length;
+
+  const handleIssueBook = async () => {
+    setIssueError("");
+
+    if (!issueForm.userId || !issueForm.bookId) {
+      setIssueError("Выберите читателя и книгу");
+      return;
+    }
+
+    if (!selectedReader?.hall_id) {
+      setIssueError("Читатель не закреплён за залом");
+      return;
+    }
+
+    if (!availableCopies) {
+      setIssueError("Нет доступных экземпляров выбранной книги");
+      return;
+    }
+
+    try {
+      await issueBook({
+        user_id: Number(issueForm.userId),
+        book_id: Number(issueForm.bookId),
+        due_date: issueForm.dueDate
+          ? new Date(issueForm.dueDate).toISOString()
+          : undefined,
+      });
+      setIsIssueOpen(false);
+      setIssueForm({ userId: "", bookId: "", dueDate: "" });
+      await fetchData();
+    } catch (err) {
+      setIssueError(err.message || "Не удалось оформить выдачу");
+    }
+  };
+
   return (
     <div className="layout">
       <aside className="layout__sidebar">
@@ -69,8 +298,11 @@ const BooksManagementPage = () => {
                   Панель управления инвентарем
                 </h1>
                 <p className="inventory__hero-subtitle">
-                  Добро пожаловать, Никита. Сегодня в каталоге 12 новых
-                  поступлений и 5 заявок на бронирование.
+                  {loading
+                    ? "Загружаем данные..."
+                    : error
+                      ? error
+                      : `В каталоге ${books.length} книг, на руках ${booksOnHands}.`}
                 </p>
                 <div className="inventory__hero-actions">
                   <button
@@ -114,7 +346,7 @@ const BooksManagementPage = () => {
                   <span>Статус</span>
                   <span>Действия</span>
                 </div>
-                {inventory.map((item) => (
+                {pagedInventory.map((item) => (
                   <div key={item.id} className="inventory-table__row">
                     <span className="inventory-table__isbn">{item.isbn}</span>
                     <div className="inventory-table__book">
@@ -142,9 +374,14 @@ const BooksManagementPage = () => {
               </div>
               <div className="inventory__table-footer">
                 <span className="inventory__table-meta">
-                  Показано 3 из 1,248 книг
+                  Показано {pagedInventory.length} из {inventoryRows.length}{" "}
+                  книг
                 </span>
-                <Pagination />
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                />
               </div>
             </div>
 
@@ -165,7 +402,7 @@ const BooksManagementPage = () => {
                   Последняя активность
                 </div>
                 <div className="activity-card__list">
-                  {activity.map((item) => (
+                  {activityItems.map((item) => (
                     <div
                       key={item.id}
                       className={`activity-card__item activity-card__item--${item.tone}`}
@@ -198,11 +435,11 @@ const BooksManagementPage = () => {
               <div className="inventory__stats">
                 <div className="stat-tile">
                   <span className="stat-tile__label">Книг на руках</span>
-                  <span className="stat-tile__value">342</span>
+                  <span className="stat-tile__value">{booksOnHands}</span>
                 </div>
                 <div className="stat-tile stat-tile--danger">
                   <span className="stat-tile__label">Просрочено</span>
-                  <span className="stat-tile__value">12</span>
+                  <span className="stat-tile__value">{overdueCount}</span>
                   <button className="stat-tile__link" type="button">
                     Смотреть список
                   </button>
@@ -253,6 +490,8 @@ const BooksManagementPage = () => {
                         className="modal-form__input"
                         type="text"
                         placeholder="Введите название книги"
+                        value={bookForm.title}
+                        onChange={handleBookFormChange("title")}
                       />
                     </label>
                     <label className="modal-form__label">
@@ -261,6 +500,8 @@ const BooksManagementPage = () => {
                         className="modal-form__input"
                         type="text"
                         placeholder="Имя и фамилия автора"
+                        value={bookForm.author}
+                        onChange={handleBookFormChange("author")}
                       />
                     </label>
                     <div className="modal-form__row">
@@ -268,26 +509,36 @@ const BooksManagementPage = () => {
                         Год издания
                         <input
                           className="modal-form__input"
-                          type="text"
+                          type="number"
                           placeholder="2024"
+                          value={bookForm.year}
+                          onChange={handleBookFormChange("year")}
                         />
                       </label>
                       <label className="modal-form__label">
                         Категория
-                        <select className="modal-form__input">
-                          <option>Выбрать...</option>
-                          <option>Классика</option>
-                          <option>Детектив</option>
-                          <option>Фантастика</option>
+                        <select
+                          className="modal-form__input"
+                          value={bookForm.genreId}
+                          onChange={handleBookFormChange("genreId")}
+                        >
+                          <option value="">Выбрать...</option>
+                          {genres.map((genre) => (
+                            <option key={genre.id} value={genre.id}>
+                              {genre.name}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     </div>
                     <label className="modal-form__label">
-                      ISBN
+                      ISBN / Шифр экземпляра
                       <input
                         className="modal-form__input"
                         type="text"
                         placeholder="978-5-..."
+                        value={bookForm.cipher}
+                        onChange={handleBookFormChange("cipher")}
                       />
                     </label>
                     <label className="modal-form__label">
@@ -296,8 +547,12 @@ const BooksManagementPage = () => {
                         className="modal-form__textarea"
                         placeholder="Краткое описание сюжета или содержания..."
                         rows="4"
+                        disabled
                       ></textarea>
                     </label>
+                    {formError && (
+                      <div className="modal-form__error">{formError}</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -309,7 +564,11 @@ const BooksManagementPage = () => {
                 >
                   Отмена
                 </button>
-                <button className="button button--primary" type="button">
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={handleAddBook}
+                >
                   Добавить книгу
                 </button>
               </div>
@@ -342,13 +601,20 @@ const BooksManagementPage = () => {
               <div className="modal__body">
                 <div className="issue-form">
                   <label className="modal-form__label">
-                    Читатель (ФИО или ID)
+                    Читатель
                     <div className="modal-form__input modal-form__input--icon">
                       <i className="bi bi-search"></i>
-                      <input
-                        type="text"
-                        placeholder="Введите имя или номер билета..."
-                      />
+                      <select
+                        value={issueForm.userId}
+                        onChange={handleIssueChange("userId")}
+                      >
+                        <option value="">Выберите читателя</option>
+                        {readers.map((reader) => (
+                          <option key={reader.id} value={reader.id}>
+                            {reader.full_name} (ID {reader.id})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </label>
                   <div className="issue-form__chips">
@@ -362,15 +628,36 @@ const BooksManagementPage = () => {
                     Выбор книги
                     <div className="issue-form__book">
                       <i className="bi bi-book"></i>
-                      Мастер и Маргарита, М. Булгаков
-                      <span className="issue-form__check">
-                        <i className="bi bi-check-circle-fill"></i>
-                      </span>
+                      <select
+                        className="issue-form__select"
+                        value={issueForm.bookId}
+                        onChange={handleIssueChange("bookId")}
+                      >
+                        <option value="">Выберите книгу</option>
+                        {books
+                          .filter((book) =>
+                            book.copies?.some(
+                              (copy) => copy.status === "Available",
+                            ),
+                          )
+                          .map((book) => (
+                            <option key={book.id} value={book.id}>
+                              {book.title}
+                            </option>
+                          ))}
+                      </select>
+                      {availableCopies ? (
+                        <span className="issue-form__check">
+                          <i className="bi bi-check-circle-fill"></i>
+                        </span>
+                      ) : null}
                     </div>
                   </label>
                   <div className="issue-form__availability">
                     <i className="bi bi-check-circle"></i>
-                    Экземпляр в наличии (Зал №4, Стеллаж A-12)
+                    {availableCopies
+                      ? `Экземпляров доступно: ${availableCopies}`
+                      : "Экземпляров нет"}
                   </div>
 
                   <div className="issue-form__row">
@@ -378,21 +665,28 @@ const BooksManagementPage = () => {
                       Срок выдачи
                       <div className="modal-form__input modal-form__input--icon">
                         <i className="bi bi-calendar"></i>
-                        <input type="text" placeholder="11/15/2023" />
+                        <input
+                          type="date"
+                          value={issueForm.dueDate}
+                          onChange={handleIssueChange("dueDate")}
+                        />
                       </div>
                     </label>
                     <label className="modal-form__label">
                       Выбор зала
                       <div className="modal-form__input modal-form__input--icon">
                         <i className="bi bi-columns-gap"></i>
-                        <select>
-                          <option>Абонемент (на дом)</option>
-                          <option>Главный читальный зал</option>
-                          <option>Медиатека</option>
-                        </select>
+                        <input
+                          type="text"
+                          value={selectedHall?.name || "Не назначен"}
+                          readOnly
+                        />
                       </div>
                     </label>
                   </div>
+                  {issueError && (
+                    <div className="modal-form__error">{issueError}</div>
+                  )}
                 </div>
               </div>
               <div className="modal__footer modal__footer--split">
@@ -403,7 +697,11 @@ const BooksManagementPage = () => {
                 >
                   Отмена
                 </button>
-                <button className="button button--primary" type="button">
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={handleIssueBook}
+                >
                   Выдать книгу
                 </button>
               </div>
