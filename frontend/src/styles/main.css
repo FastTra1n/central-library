@@ -640,6 +640,17 @@ body {
     color: #fff;
 }
 
+.pagination__button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.pagination__ellipsis {
+    color: var(--color-muted);
+    font-size: 12px;
+    padding: 0 4px;
+}
+
 .halls {
     display: flex;
     flex-direction: column;
@@ -1873,6 +1884,11 @@ body {
     color: var(--color-muted);
 }
 
+.modal-form__error {
+    font-size: 12px;
+    color: #b91c1c;
+}
+
 .issue-form {
     display: flex;
     flex-direction: column;
@@ -1910,6 +1926,14 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text);
+}
+
+.issue-form__select {
+    border: none;
+    background: transparent;
+    font: inherit;
+    outline: none;
+    width: 100%;
 }
 
 .issue-form__check {
@@ -2152,6 +2176,28 @@ body {
     border-radius: 999px;
     padding: 6px 12px;
     cursor: pointer;
+}
+
+.users-table__action-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.users-table__select {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: var(--color-surface);
+}
+
+.users__role-filter {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
+    background: var(--color-surface);
 }
 
 .users__table-footer {
