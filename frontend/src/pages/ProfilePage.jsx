@@ -1,90 +1,163 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { getMe } from "../api/auth.js";
+import { getFreeSeats } from "../api/analytics.js";
+import { getBooks } from "../api/books.js";
+import { getHalls } from "../api/halls.js";
+import { getTransactions } from "../api/transactions.js";
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
+import {
+  calcProgress,
+  formatDateTime,
+  formatDueDateLabel,
+  isOverdue,
+} from "../utils/date.js";
 
-const books = [
-  {
-    id: 1,
-    title: "Мастер и Маргарита",
-    author: "Михаил Булгаков",
-    statusLabel: "До 24 октября",
-    statusType: "ok",
-    progress: 70,
-    cover:
-      "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=200&q=80",
-  },
-  {
-    id: 2,
-    title: "1984",
-    author: "Джордж Оруэлл",
-    statusLabel: "Срок истёк вчера",
-    statusType: "overdue",
-    progress: 100,
-    cover:
-      "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=200&q=80",
-  },
-];
-
-const activities = [
-  {
-    id: 1,
-    title: "Возврат книги: «Цветы для Элджернона»",
-    subtitle: "Сдана вовремя в главный зал",
-    time: "Вчера, 14:20",
-    icon: "bi-check-circle",
-    tone: "success",
-  },
-  {
-    id: 2,
-    title: "Бронирование: «Дюна»",
-    subtitle: "Ожидает получения до 20 октября",
-    time: "15 Окт, 09:45",
-    icon: "bi-bookmark",
-    tone: "info",
-  },
-  {
-    id: 3,
-    title: "Бронь места: Зал Медиатеки",
-    subtitle: "Место №A2, Сессия 12:00 - 16:00",
-    time: "12 Окт, 18:10",
-    icon: "bi-lamp",
-    tone: "warning",
-  },
-];
-
-const halls = [
-  {
-    id: 1,
-    name: "Главный читальный зал",
-    specialization: "Классическая литература",
-    free: 42,
-    capacity: 120,
-    status: "Открыто",
-    statusType: "open",
-    actionLabel: "Забронировать",
-  },
-  {
-    id: 2,
-    name: "Медиатека",
-    specialization: "Компьютерные места",
-    free: 8,
-    capacity: 25,
-    status: "Открыто",
-    statusType: "open",
-    actionLabel: "Забронировать",
-  },
-  {
-    id: 3,
-    name: "Математический зал",
-    specialization: "Научно-техническая литература",
-    free: 0,
-    capacity: 15,
-    status: "Закрыто",
-    statusType: "closed",
-    actionLabel: "Недоступно",
-  },
-];
+const placeholderCover =
+  "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=200&q=80";
 
 const ProfilePage = () => {
+  const navigate = useNavigate();
+  const [me, setMe] = useState(null);
+  const [books, setBooks] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [halls, setHalls] = useState([]);
+  const [freeSeats, setFreeSeats] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const meData = await getMe();
+        setMe(meData);
+
+        const [booksData, transactionsData, hallsData] = await Promise.all([
+          getBooks(),
+          getTransactions().catch(() => []),
+          getHalls(),
+        ]);
+        setBooks(booksData);
+        setTransactions(transactionsData);
+        setHalls(hallsData);
+
+        try {
+          const freeSeatsData = await getFreeSeats();
+          setFreeSeats(freeSeatsData);
+        } catch (err) {
+          setFreeSeats([]);
+        }
+      } catch (err) {
+        if (err.status === 401) {
+          navigate("/auth");
+          return;
+        }
+        setError(err.message || "Не удалось загрузить профиль");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
+
+  const booksMap = useMemo(() => {
+    const map = new Map();
+    books.forEach((book) => map.set(book.id, book));
+    return map;
+  }, [books]);
+
+  const issuedBooks = useMemo(() => {
+    return transactions.filter((item) => !item.return_date);
+  }, [transactions]);
+
+  const bookCards = useMemo(() => {
+    return issuedBooks.map((transaction) => {
+      const book = booksMap.get(transaction.copy?.book_id);
+      const overdue = isOverdue(transaction.due_date);
+      return {
+        id: transaction.id,
+        title: book?.title || "Книга",
+        author: book?.authors?.map((item) => item.full_name).join(", ") || "—",
+        statusLabel: overdue
+          ? `Просрочено (${formatDueDateLabel(transaction.due_date)})`
+          : formatDueDateLabel(transaction.due_date),
+        statusType: overdue ? "overdue" : "ok",
+        progress: calcProgress(transaction.issue_date, transaction.due_date),
+        cover: placeholderCover,
+      };
+    });
+  }, [issuedBooks, booksMap]);
+
+  const activityItems = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => {
+        const aDate = new Date(a.return_date || a.issue_date).getTime();
+        const bDate = new Date(b.return_date || b.issue_date).getTime();
+        return bDate - aDate;
+      })
+      .slice(0, 5)
+      .map((transaction) => {
+        const book = booksMap.get(transaction.copy?.book_id);
+        const title = book?.title || "Книга";
+        const returned = Boolean(transaction.return_date);
+        const overdue = isOverdue(transaction.due_date);
+        return {
+          id: transaction.id,
+          title: returned
+            ? `Возврат книги: «${title}»`
+            : `Выдача книги: «${title}»`,
+          subtitle: returned
+            ? "Сдана в библиотеку"
+            : overdue
+              ? "Срок сдачи просрочен"
+              : "В работе у читателя",
+          time: formatDateTime(
+            transaction.return_date || transaction.issue_date,
+          ),
+          icon: returned
+            ? "bi-check-circle"
+            : overdue
+              ? "bi-exclamation-triangle"
+              : "bi-bookmark",
+          tone: returned ? "success" : overdue ? "warning" : "info",
+        };
+      });
+  }, [transactions, booksMap]);
+
+  const hallsMap = useMemo(() => {
+    const map = new Map();
+    halls.forEach((hall) => map.set(hall.id, hall));
+    return map;
+  }, [halls]);
+
+  const freeSeatsMap = useMemo(() => {
+    const map = new Map();
+    freeSeats.forEach((item) => map.set(item.hall_id, item));
+    return map;
+  }, [freeSeats]);
+
+  const myHall = me?.hall_id ? hallsMap.get(me.hall_id) : null;
+  const hallFreeInfo = myHall ? freeSeatsMap.get(myHall.id) : null;
+  const hallCards = myHall
+    ? [
+        {
+          id: myHall.id,
+          name: myHall.name,
+          specialization: myHall.specialization,
+          free: hallFreeInfo?.free ?? null,
+          capacity: myHall.seats ?? null,
+          status: hallFreeInfo?.free === 0 ? "Закрыто" : "Открыто",
+          statusType: hallFreeInfo?.free === 0 ? "closed" : "open",
+          actionLabel: "Информация",
+        },
+      ]
+    : [];
+
   return (
     <div className="layout">
       <aside className="layout__sidebar">
@@ -95,9 +168,15 @@ const ProfilePage = () => {
         <main className="layout__content">
           <section className="profile">
             <div className="profile__header">
-              <h1 className="profile__title">Добро пожаловать, Никита</h1>
+              <h1 className="profile__title">
+                {me ? `Добро пожаловать, ${me.full_name}` : "Добро пожаловать"}
+              </h1>
               <p className="profile__subtitle">
-                Сегодня отличный день, чтобы погрузиться в новую историю.
+                {loading
+                  ? "Загружаем ваш профиль..."
+                  : error
+                    ? error
+                    : "Сегодня отличный день, чтобы погрузиться в новую историю."}
               </p>
             </div>
 
@@ -111,8 +190,11 @@ const ProfilePage = () => {
                     </button>
                   </div>
                   <div className="profile-books">
-                    {books.map((book) => {
-                      const isOverdue = book.statusType === "overdue";
+                    {bookCards.length === 0 && !loading && (
+                      <div className="profile__subtitle">Нет активных книг</div>
+                    )}
+                    {bookCards.map((book) => {
+                      const isOverdueFlag = book.statusType === "overdue";
                       return (
                         <div key={book.id} className="profile-books__card">
                           <div
@@ -120,19 +202,25 @@ const ProfilePage = () => {
                             style={{ backgroundImage: `url(${book.cover})` }}
                           ></div>
                           <div className="profile-books__details">
-                            <h3 className="profile-books__title">{book.title}</h3>
-                            <p className="profile-books__author">{book.author}</p>
+                            <h3 className="profile-books__title">
+                              {book.title}
+                            </h3>
+                            <p className="profile-books__author">
+                              {book.author}
+                            </p>
                             <div className="profile-books__meta">
                               <i
                                 className={`bi ${
-                                  isOverdue
+                                  isOverdueFlag
                                     ? "bi-exclamation-triangle"
                                     : "bi-calendar-event"
                                 }`}
                               ></i>
                               <span
                                 className={`profile-books__status ${
-                                  isOverdue ? "profile-books__status--overdue" : ""
+                                  isOverdueFlag
+                                    ? "profile-books__status--overdue"
+                                    : ""
                                 }`}
                               >
                                 {book.statusLabel}
@@ -141,7 +229,7 @@ const ProfilePage = () => {
                             <div className="profile-books__progress">
                               <span
                                 className={`profile-books__progress-bar ${
-                                  isOverdue
+                                  isOverdueFlag
                                     ? "profile-books__progress-bar--overdue"
                                     : ""
                                 }`}
@@ -157,10 +245,17 @@ const ProfilePage = () => {
 
                 <div className="profile__section">
                   <div className="profile__section-header">
-                    <h2 className="profile__section-title">История активности</h2>
+                    <h2 className="profile__section-title">
+                      История активности
+                    </h2>
                   </div>
                   <div className="profile-activity">
-                    {activities.map((activity) => (
+                    {activityItems.length === 0 && !loading && (
+                      <div className="profile__subtitle">
+                        История пока пуста
+                      </div>
+                    )}
+                    {activityItems.map((activity) => (
                       <div key={activity.id} className="profile-activity__item">
                         <div className="profile-activity__left">
                           <div
@@ -168,8 +263,8 @@ const ProfilePage = () => {
                               activity.tone === "success"
                                 ? "profile-activity__icon--success"
                                 : activity.tone === "warning"
-                                ? "profile-activity__icon--warning"
-                                : ""
+                                  ? "profile-activity__icon--warning"
+                                  : ""
                             }`}
                           >
                             <i className={`bi ${activity.icon}`}></i>
@@ -195,21 +290,28 @@ const ProfilePage = () => {
               <aside className="profile__aside">
                 <div className="profile__section">
                   <div className="profile__section-header">
-                    <h2 className="profile__section-title">Библиотечные залы</h2>
+                    <h2 className="profile__section-title">
+                      Библиотечные залы
+                    </h2>
                   </div>
                   <div className="profile-halls">
-                    {halls.map((hall) => {
+                    {hallCards.length === 0 && !loading && (
+                      <div className="profile__subtitle">
+                        Зал пока не назначен
+                      </div>
+                    )}
+                    {hallCards.map((hall) => {
                       const isClosed = hall.statusType === "closed";
                       return (
                         <div key={hall.id} className="profile-halls__card">
                           <div className="profile-halls__info">
                             <h3 className="profile-halls__name">{hall.name}</h3>
                             <p className="profile-halls__subtitle">
-                              {hall.specialization}
+                              {hall.specialization || "Общий"}
                             </p>
                             <div className="profile-halls__seats">
-                              <strong>{hall.free}</strong> / {hall.capacity} свободных
-                              мест
+                              <strong>{hall.free ?? "—"}</strong> /{" "}
+                              {hall.capacity ?? "—"} свободных мест
                             </div>
                           </div>
                           <div className="profile-halls__meta">
@@ -222,7 +324,9 @@ const ProfilePage = () => {
                             </span>
                             <button
                               className={`profile-halls__button ${
-                                isClosed ? "profile-halls__button--disabled" : ""
+                                isClosed
+                                  ? "profile-halls__button--disabled"
+                                  : ""
                               }`}
                               type="button"
                               disabled={isClosed}
