@@ -2,6 +2,7 @@ from app.models.author import Author
 from app.models.book import Book
 from app.models.book_author import BookAuthor
 from app.models.book_copy import BookCopy
+from app.models.book_rating import BookRating
 from app.models.genre import Genre
 from app.models.hall import Hall
 from app.models.role import Role
@@ -13,6 +14,7 @@ __all__ = [
     "Book",
     "BookAuthor",
     "BookCopy",
+    "BookRating",
     "Genre",
     "Hall",
     "Role",

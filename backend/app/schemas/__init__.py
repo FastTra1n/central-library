@@ -9,6 +9,7 @@ from app.schemas.analytics import (
 from app.schemas.author import AuthorCreate, AuthorRead, AuthorUpdate
 from app.schemas.book import BookCreate, BookRead, BookUpdate
 from app.schemas.book_copy import BookCopyCreate, BookCopyRead, BookCopyUpdate
+from app.schemas.book_rating import BookRatingCreate
 from app.schemas.genre import GenreCreate, GenreRead, GenreUpdate
 from app.schemas.hall import HallCreate, HallRead, HallUpdate
 from app.schemas.role import RoleRead
@@ -25,6 +26,7 @@ __all__ = [
     "BookCopyCreate",
     "BookCopyRead",
     "BookCopyUpdate",
+    "BookRatingCreate",
     "GenreCreate",
     "GenreRead",
     "GenreUpdate",

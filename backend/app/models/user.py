@@ -33,3 +33,6 @@ class User(Base):
         back_populates="librarian",
         foreign_keys="Transaction.librarian_id",
     )
+    book_ratings = relationship(
+        "BookRating", back_populates="user", cascade="all, delete-orphan"
+    )

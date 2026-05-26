@@ -51,4 +51,4 @@ class SingleCopyBorrower(BaseModel):
 class TopRatedBook(BaseModel):
     book_id: int
     title: str
-    rating: int
+    rating: float
