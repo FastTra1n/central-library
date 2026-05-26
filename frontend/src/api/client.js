@@ -5,6 +5,7 @@ import {
 } from "../utils/auth.js";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+export const API_ORIGIN = API_URL.replace(/\/api$/, "");
 
 const parseResponse = async (response) => {
   if (response.status === 204) {

@@ -19,6 +19,21 @@ export const createBook = (payload) =>
     body: JSON.stringify(payload),
   });
 
+export const uploadBookCover = (bookId, file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request(`/books/${bookId}/cover`, {
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const rateBook = (bookId, value) =>
+  request(`/books/${bookId}/ratings`, {
+    method: "POST",
+    body: JSON.stringify({ value }),
+  });
+
 export const updateBook = (id, payload) =>
   request(`/books/${id}`, {
     method: "PATCH",
