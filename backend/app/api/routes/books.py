@@ -1,18 +1,34 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import require_roles
+from app.api.deps import get_current_user, require_roles
 from app.db.session import get_session
 from app.models.author import Author
 from app.models.book import Book
 from app.models.book_copy import BookCopy, BookCopyStatus
+from app.models.book_rating import BookRating
 from app.models.user import User
 from app.schemas.book import BookCreate, BookRead, BookUpdate
 from app.schemas.book_copy import BookCopyCreate, BookCopyRead
+from app.schemas.book_rating import BookRatingCreate
 
 router = APIRouter(prefix="/books", tags=["books"])
+
+COVERS_DIR = Path(__file__).resolve().parents[2] / "static" / "covers"
 
 
 @router.get("", response_model=list[BookRead])
@@ -194,3 +210,68 @@ async def create_book_copy(
     await session.commit()
     await session.refresh(copy)
     return copy
+
+
+@router.post("/{book_id}/cover", response_model=BookRead)
+async def upload_book_cover(
+    book_id: int,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles("Librarian", "Admin")),
+) -> BookRead:
+    book = await session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type")
+
+    suffix = Path(file.filename or "").suffix or ".jpg"
+    filename = f"{uuid4().hex}{suffix}"
+    COVERS_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = COVERS_DIR / filename
+
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    book.cover_url = f"/static/covers/{filename}"
+    await session.commit()
+    await session.refresh(book)
+    return await get_book(book.id, session)
+
+
+@router.post("/{book_id}/ratings", response_model=BookRead, status_code=201)
+async def rate_book(
+    book_id: int,
+    payload: BookRatingCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> BookRead:
+    book = await session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    existing = await session.execute(
+        select(BookRating).where(
+            BookRating.book_id == book_id,
+            BookRating.user_id == current_user.id,
+        )
+    )
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Rating already exists")
+
+    rating = BookRating(
+        book_id=book_id,
+        user_id=current_user.id,
+        value=payload.value,
+    )
+    session.add(rating)
+    await session.commit()
+
+    avg = await session.scalar(
+        select(func.avg(BookRating.value)).where(BookRating.book_id == book_id)
+    )
+    book.rating = float(avg or 0)
+    await session.commit()
+
+    return await get_book(book.id, session)
