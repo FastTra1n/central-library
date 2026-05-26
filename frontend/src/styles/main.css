@@ -1690,6 +1690,12 @@ body {
     cursor: not-allowed;
 }
 
+.details-panel__rate-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #b91c1c;
+}
+
 .details-panel__tags {
     display: flex;
     flex-wrap: wrap;
@@ -1887,6 +1893,36 @@ body {
 .modal-form__error {
     font-size: 12px;
     color: #b91c1c;
+}
+
+.modal-form__hint {
+    font-size: 12px;
+    color: var(--color-muted);
+    margin-top: -6px;
+}
+
+.author-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: -4px;
+}
+
+.author-suggestion {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.author-suggestion:hover {
+    background: var(--color-primary-weak);
+}
+
+.upload-card__input {
+    margin-top: 8px;
 }
 
 .issue-form {
