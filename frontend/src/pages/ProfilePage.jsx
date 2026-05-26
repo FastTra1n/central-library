@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { API_ORIGIN } from "../api/client.js";
 import { getMe } from "../api/auth.js";
 import { getFreeSeats } from "../api/analytics.js";
 import { getBooks } from "../api/books.js";
@@ -17,6 +18,12 @@ import {
 
 const placeholderCover =
   "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=200&q=80";
+
+const resolveCover = (coverUrl) => {
+  if (!coverUrl) return null;
+  if (coverUrl.startsWith("http")) return coverUrl;
+  return `${API_ORIGIN}${coverUrl}`;
+};
 
 const ProfilePage = () => {
   const navigate = useNavigate();
@@ -88,7 +95,7 @@ const ProfilePage = () => {
           : formatDueDateLabel(transaction.due_date),
         statusType: overdue ? "overdue" : "ok",
         progress: calcProgress(transaction.issue_date, transaction.due_date),
-        cover: placeholderCover,
+        cover: resolveCover(book?.cover_url) || placeholderCover,
       };
     });
   }, [issuedBooks, booksMap]);

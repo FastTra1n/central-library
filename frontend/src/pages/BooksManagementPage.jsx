@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { createAuthor, getAuthors } from "../api/authors.js";
-import { createBook, getBooks } from "../api/books.js";
+import { createBook, getBooks, uploadBookCover } from "../api/books.js";
 import { getGenres } from "../api/genres.js";
 import { getHalls } from "../api/halls.js";
 import { issueBook, getTransactions } from "../api/transactions.js";
@@ -35,13 +35,27 @@ const BooksManagementPage = () => {
     genreId: "",
     cipher: "",
   });
+  const [authorCountry, setAuthorCountry] = useState("");
+  const [selectedAuthorId, setSelectedAuthorId] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
   const [issueForm, setIssueForm] = useState({
     userId: "",
     bookId: "",
     dueDate: "",
   });
+
+  const normalizeName = (value) =>
+    value.toLowerCase().replace(/\s+/g, " ").trim();
   const [formError, setFormError] = useState("");
   const [issueError, setIssueError] = useState("");
+
+  const resetAddForm = () => {
+    setBookForm({ title: "", author: "", year: "", genreId: "", cipher: "" });
+    setAuthorCountry("");
+    setSelectedAuthorId(null);
+    setCoverFile(null);
+    setFormError("");
+  };
 
   const readers = useMemo(() => {
     return users.filter((user) => {
@@ -197,7 +211,39 @@ const BooksManagementPage = () => {
   }, [transactions, booksMap]);
 
   const handleBookFormChange = (field) => (event) => {
-    setBookForm((prev) => ({ ...prev, [field]: event.target.value }));
+    const value = event.target.value;
+    setBookForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "author") {
+      setSelectedAuthorId(null);
+    }
+  };
+
+  const authorMatches = useMemo(() => {
+    const query = normalizeName(bookForm.author);
+    if (!query) return [];
+    return authors.filter((author) =>
+      normalizeName(author.full_name).includes(query),
+    );
+  }, [authors, bookForm.author]);
+
+  const exactAuthor = useMemo(() => {
+    const query = normalizeName(bookForm.author);
+    if (!query) return null;
+    return authors.find((author) => normalizeName(author.full_name) === query);
+  }, [authors, bookForm.author]);
+
+  const isNewAuthor =
+    bookForm.author.trim().length > 0 && !exactAuthor && !selectedAuthorId;
+
+  const handleAuthorSelect = (author) => {
+    setSelectedAuthorId(author.id);
+    setBookForm((prev) => ({ ...prev, author: author.full_name }));
+    setAuthorCountry("");
+  };
+
+  const handleCoverChange = (event) => {
+    const file = event.target.files?.[0];
+    setCoverFile(file || null);
   };
 
   const handleAddBook = async () => {
@@ -208,17 +254,24 @@ const BooksManagementPage = () => {
       return;
     }
 
-    let authorId = null;
+    let authorId = selectedAuthorId;
     const authorName = bookForm.author.trim();
-    if (authorName) {
-      const existing = authors.find(
-        (item) => item.full_name.toLowerCase() === authorName.toLowerCase(),
+    if (authorName && !authorId) {
+      const normalized = normalizeName(authorName);
+      const exact = authors.find(
+        (item) => normalizeName(item.full_name) === normalized,
       );
-      if (existing) {
-        authorId = existing.id;
+      if (exact) {
+        authorId = exact.id;
+      } else if (authorMatches.length > 0) {
+        setFormError("Похоже, автор уже есть в базе. Выберите из списка.");
+        return;
       } else {
         try {
-          const created = await createAuthor({ full_name: authorName });
+          const created = await createAuthor({
+            full_name: authorName,
+            country: authorCountry?.trim() || null,
+          });
           authorId = created.id;
           setAuthors((prev) => [...prev, created]);
         } catch (err) {
@@ -240,9 +293,12 @@ const BooksManagementPage = () => {
     };
 
     try {
-      await createBook(payload);
+      const createdBook = await createBook(payload);
+      if (coverFile) {
+        await uploadBookCover(createdBook.id, coverFile);
+      }
       setIsAddOpen(false);
-      setBookForm({ title: "", author: "", year: "", genreId: "", cipher: "" });
+      resetAddForm();
       await fetchData();
     } catch (err) {
       setFormError(err.message || "Не удалось добавить книгу");
@@ -466,7 +522,13 @@ const BooksManagementPage = () => {
         </main>
 
         {isAddOpen && (
-          <div className="modal" onClick={() => setIsAddOpen(false)}>
+          <div
+            className="modal"
+            onClick={() => {
+              setIsAddOpen(false);
+              resetAddForm();
+            }}
+          >
             <div
               className="modal__content"
               onClick={(event) => event.stopPropagation()}
@@ -481,7 +543,10 @@ const BooksManagementPage = () => {
                 <button
                   className="modal__close"
                   type="button"
-                  onClick={() => setIsAddOpen(false)}
+                  onClick={() => {
+                    setIsAddOpen(false);
+                    resetAddForm();
+                  }}
                   aria-label="Закрыть"
                 >
                   <i className="bi bi-x"></i>
@@ -493,10 +558,17 @@ const BooksManagementPage = () => {
                     <span className="upload-card__label">Обложка книги</span>
                     <div className="upload-card__drop">
                       <i className="bi bi-image"></i>
-                      <p>Перетащите изображение или нажмите для выбора</p>
-                      <button className="button button--light" type="button">
-                        Загрузить обложку
-                      </button>
+                      <p>
+                        {coverFile
+                          ? `Выбрано: ${coverFile.name}`
+                          : "Перетащите изображение или нажмите для выбора"}
+                      </p>
+                      <input
+                        className="upload-card__input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverChange}
+                      />
                     </div>
                   </div>
                   <div className="modal-form">
@@ -520,6 +592,39 @@ const BooksManagementPage = () => {
                         onChange={handleBookFormChange("author")}
                       />
                     </label>
+                    {selectedAuthorId && (
+                      <div className="modal-form__hint">
+                        Автор выбран из базы.
+                      </div>
+                    )}
+                    {authorMatches.length > 0 && !selectedAuthorId && (
+                      <div className="author-suggestions">
+                        {authorMatches.map((author) => (
+                          <button
+                            key={author.id}
+                            className="author-suggestion"
+                            type="button"
+                            onClick={() => handleAuthorSelect(author)}
+                          >
+                            {author.full_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {isNewAuthor && (
+                      <label className="modal-form__label">
+                        Страна автора
+                        <input
+                          className="modal-form__input"
+                          type="text"
+                          placeholder="Например, Россия"
+                          value={authorCountry}
+                          onChange={(event) =>
+                            setAuthorCountry(event.target.value)
+                          }
+                        />
+                      </label>
+                    )}
                     <div className="modal-form__row">
                       <label className="modal-form__label">
                         Год издания
@@ -557,15 +662,7 @@ const BooksManagementPage = () => {
                         onChange={handleBookFormChange("cipher")}
                       />
                     </label>
-                    <label className="modal-form__label">
-                      Описание
-                      <textarea
-                        className="modal-form__textarea"
-                        placeholder="Краткое описание сюжета или содержания..."
-                        rows="4"
-                        disabled
-                      ></textarea>
-                    </label>
+
                     {formError && (
                       <div className="modal-form__error">{formError}</div>
                     )}
@@ -576,7 +673,10 @@ const BooksManagementPage = () => {
                 <button
                   className="button button--light"
                   type="button"
-                  onClick={() => setIsAddOpen(false)}
+                  onClick={() => {
+                    setIsAddOpen(false);
+                    resetAddForm();
+                  }}
                 >
                   Отмена
                 </button>

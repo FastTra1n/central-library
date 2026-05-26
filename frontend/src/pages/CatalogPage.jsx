@@ -1,18 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { getBooks } from "../api/books.js";
+import { API_ORIGIN } from "../api/client.js";
+import { getBooks, rateBook } from "../api/books.js";
 import { getGenres } from "../api/genres.js";
 import BookCard from "../components/BookCard.jsx";
 import Pagination from "../components/Pagination.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import TopBar from "../components/TopBar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { isAuthenticated } from "../utils/auth.js";
 
 const placeholderCover =
   "https://images.unsplash.com/photo-1524985069026-dd778a71c7b4?auto=format&fit=crop&w=600&q=80";
 
 const PAGE_SIZE = 8;
+
+const resolveCover = (coverUrl) => {
+  if (!coverUrl) return null;
+  if (coverUrl.startsWith("http")) return coverUrl;
+  return `${API_ORIGIN}${coverUrl}`;
+};
 
 const mapBook = (book) => {
   const totalCopies = book.copies?.length ?? 0;
@@ -32,8 +40,8 @@ const mapBook = (book) => {
     statusType,
     totalCopies,
     availableCopies,
-    description:
-      book.description || `Жанр: ${genre}. Автор: ${author || "не указан"}.`,
+    cover: resolveCover(book.cover_url),
+    description: `Жанр: ${genre}. Автор: ${author || "не указан"}.`,
   };
 };
 
@@ -46,6 +54,7 @@ const CatalogPage = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [ratingValue, setRatingValue] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [ratingError, setRatingError] = useState("");
   const [genres, setGenres] = useState([]);
   const [books, setBooks] = useState([]);
   const [total, setTotal] = useState(0);
@@ -126,10 +135,36 @@ const CatalogPage = () => {
     setSelectedBook(book);
     setRatingValue(0);
     setHoverRating(0);
+    setRatingError("");
   };
 
   const handleCloseDetails = () => {
     setSelectedBook(null);
+  };
+
+  const handleRateBook = async () => {
+    if (!selectedBook) return;
+    if (!isAuthenticated()) {
+      navigate("/auth", { state: { from: "/catalog" } });
+      return;
+    }
+    try {
+      const updated = await rateBook(selectedBook.id, ratingValue);
+      const mapped = mapBook(updated);
+      setBooks((prev) =>
+        prev.map((item) => (item.id === mapped.id ? mapped : item)),
+      );
+      setSelectedBook(mapped);
+      setRatingValue(0);
+      setHoverRating(0);
+      setRatingError("");
+    } catch (err) {
+      if (err.status === 401) {
+        navigate("/auth", { state: { from: "/catalog" } });
+        return;
+      }
+      setRatingError(err.message || "Не удалось отправить оценку");
+    }
   };
 
   const handleApplyFilters = () => {
@@ -399,10 +434,14 @@ const CatalogPage = () => {
                     className="button button--primary details-panel__rate-button"
                     type="button"
                     disabled={!ratingValue}
+                    onClick={handleRateBook}
                   >
                     Оценить
                   </button>
                 </div>
+                {ratingError && (
+                  <div className="details-panel__rate-error">{ratingError}</div>
+                )}
               </div>
             </aside>
           </div>
